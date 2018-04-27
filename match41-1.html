@@ -1,0 +1,109 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+<HEAD>
+ <TITLE>bitcoin-atom-master_src_bench_ccoins_caching.cpp</TITLE>
+<META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <script type="text/javascript">
+  <!--
+   function ZweiFrames(URL1,F1,URL2,F2)
+   {
+    parent.frames[F1].location.href=URL1;
+    parent.frames[F2].location.href=URL2;
+   }
+  //-->
+  </script>
+</HEAD>
+<BODY BGCOLOR="#ffffff" style="margin-left:25">
+<HR>
+<H3><CENTER>bitcoin-atom-master_src_bench_ccoins_caching.cpp</CENTER></H3><HR>
+<PRE>
+// Copyright (c) 2016-2017 The Bitcoin Core developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
+#include &lt;bench/bench.h&gt;
+#include &lt;coins.h&gt;
+#include &lt;policy/policy.h&gt;
+#include &lt;wallet/crypter.h&gt;
+
+#include &lt;vector&gt;
+
+// FIXME: Dedup with SetupDummyInputs in test/transaction_tests.cpp.
+//
+// Helper: create two dummy transactions, each with
+// two outputs.  The first has 11 and 50 CENT outputs
+<A NAME="0"></A>// paid to a TX_PUBKEY, the second 21 and 22 CENT outputs
+// paid to a TX_PUBKEYHASH.
+//
+<FONT color="#0000ff"><div style="position:absolute;left:0"><A HREF="javascript:ZweiFrames('match41-0.html#0',2,'match41-top.html#0',1)"><IMG SRC="back.gif" ALT="other" BORDER="0" ALIGN="left"></A></div><B>static std::vector&lt;CMutableTransaction&gt;
+SetupDummyInputs(CBasicKeyStore&amp; keystoreRet, CCoinsViewCache&amp; coinsRet)
+{
+    std::vector&lt;CMutableTransaction&gt; dummyTransactions;
+    dummyTransactions.resize(2);
+
+    // Add some keys to the keystore:
+    CKey key[4];
+    for (int i = 0; i &lt; 4; i++) {
+        key[i].MakeNewKey(i % 2);
+        keystoreRet.AddKey(key[i]);
+    }
+
+    // Create some dummy input transactions
+    dummyTransactions[0].vout.resize(2);
+    dummyTransactions[0].vout[0].nValue = 11 * CENT;
+    dummyTransactions[0].vout[0].scriptPubKey &lt;&lt; ToByteVector(key[0].GetPubKey()) &lt;&lt; OP_CHECKSIG;
+    dummyTransactions[0].vout[1].nValue = 50 * CENT;
+    dummyTransactions[0].vout[1].scriptPubKey &lt;&lt; ToByteVector(key[1].GetPubKey()) &lt;&lt; OP_CHECKSIG;
+    AddCoins(coinsRet, dummyTransactions[0], 0);
+
+    dummyTransactions[1].vout.resize(2);
+    dummyTransactions[1].vout[0].nValue = 21 * CENT;
+    dummyTransactions[1].vout[0].scriptPubKey = GetScriptForDestination(key[2].GetPubKey().GetID());
+    dummyTransactions[1].vout[1].nValue = 22 * CENT;
+    dummyTransactions[1].vout[1].scriptPubKey = GetScriptForDestination(key[3].GetPubKey().GetID());
+    AddCoins(coinsRet, dummyTransactions[1], 0);
+
+    return dummyTransactions;
+}</B></FONT>
+
+// Microbenchmark for simple accesses to a CCoinsViewCache database. Note from
+// laanwj, &quot;replicating the actual usage patterns of the client is hard though,
+// many times micro-benchmarks of the database showed completely different
+// characteristics than e.g. reindex timings. But that's not a requirement of
+<A NAME="1"></A>// every benchmark.&quot;
+// (https://github.com/bitcoin/bitcoin/issues/7883#issuecomment-224807484)
+static void CCoinsCaching(benchmark::State&amp; state)
+<FONT color="#f63526"><div style="position:absolute;left:0"><A HREF="javascript:ZweiFrames('match41-0.html#1',2,'match41-top.html#1',1)"><IMG SRC="back.gif" ALT="other" BORDER="0" ALIGN="left"></A></div><B>{
+    CBasicKeyStore keystore;
+    CCoinsView coinsDummy;
+    CCoinsViewCache coins(&amp;coinsDummy);
+    std::vector&lt;CMutableTransaction&gt; dummyTransactions = SetupDummyInputs(keystore, coins);
+
+    CMutableTransaction t1;
+    t1.vin.resize(3);
+    t1.vin[0].prevout.hash = dummyTransactions[0].GetHash();
+    t1.vin[0].prevout.n = 1;
+    t1.vin[0].scriptSig &lt;&lt; std::vector&lt;unsigned char&gt;(65, 0);
+    t1.vin[1].prevout.hash = dummyTransactions[1].GetHash();
+    t1.vin[1].prevout.n = 0;
+    t1.vin[1].scriptSig &lt;&lt; std::vector&lt;unsigned char&gt;(65, 0) &lt;&lt; std::vector&lt;unsigned char&gt;(33, 4);
+    t1.vin[2].prevout.hash = dummyTransactions[1].GetHash();
+    t1.vin[2].prevout.n = 1;
+    t1.vin[2].scriptSig &lt;&lt; std::vector&lt;unsigned char&gt;(65, 0) &lt;&lt; std::vector&lt;unsigned char&gt;(33, 4);
+    t1.vout.resize(2);
+    t1.vout[0].nValue = 90 * CENT;</B></FONT>
+    t1.vout[0].scriptPubKey &lt;&lt; OP_1;
+
+    // Benchmark.
+    while (state.KeepRunning()) {
+        bool success = AreInputsStandard(t1, coins);
+        assert(success);
+        CAmount value = coins.GetValueIn(t1);
+        assert(value == (50 + 21 + 22) * CENT);
+    }
+}
+
+BENCHMARK(CCoinsCaching, 170 * 1000);
+</PRE>
+</BODY>
+</HTML>

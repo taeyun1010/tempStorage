@@ -1,0 +1,518 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+<HEAD>
+ <TITLE>bitcoin-atom-master_src_secp256k1_src_field_5x52_impl.h</TITLE>
+<META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <script type="text/javascript">
+  <!--
+   function ZweiFrames(URL1,F1,URL2,F2)
+   {
+    parent.frames[F1].location.href=URL1;
+    parent.frames[F2].location.href=URL2;
+   }
+  //-->
+  </script>
+</HEAD>
+<BODY BGCOLOR="#ffffff" style="margin-left:25">
+<HR>
+<H3><CENTER>bitcoin-atom-master_src_secp256k1_src_field_5x52_impl.h</CENTER></H3><HR>
+<PRE>
+/**********************************************************************
+ * Copyright (c) 2013, 2014 Pieter Wuille                             *
+ * Distributed under the MIT software license, see the accompanying   *
+ * file COPYING or http://www.opensource.org/licenses/mit-license.php.*
+ **********************************************************************/
+
+#ifndef SECP256K1_FIELD_REPR_IMPL_H
+#define SECP256K1_FIELD_REPR_IMPL_H
+
+#if defined HAVE_CONFIG_H
+#include &quot;libsecp256k1-config.h&quot;
+#endif
+
+#include &quot;util.h&quot;
+#include &quot;num.h&quot;
+#include &quot;field.h&quot;
+
+#if defined(USE_ASM_X86_64)
+#include &quot;field_5x52_asm_impl.h&quot;
+#else
+#include &quot;field_5x52_int128_impl.h&quot;
+#endif
+
+/** Implements arithmetic modulo FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFE FFFFFC2F,
+ *  represented as 5 uint64_t's in base 2^52. The values are allowed to contain &gt;52 each. In particular,
+ *  each FieldElem has a 'magnitude' associated with it. Internally, a magnitude M means each element
+ *  is at most M*(2^53-1), except the most significant one, which is limited to M*(2^49-1). All operations
+ *  accept any input with magnitude at most M, and have different rules for propagating magnitude to their
+ *  output.
+ */
+
+#ifdef VERIFY
+static void secp256k1_fe_verify(const secp256k1_fe *a) {
+    const uint64_t *d = a-&gt;n;
+    int m = a-&gt;normalized ? 1 : 2 * a-&gt;magnitude, r = 1;
+   /* secp256k1 'p' value defined in &quot;Standards for Efficient Cryptography&quot; (SEC2) 2.7.1. */
+    r &amp;= (d[0] &lt;= 0xFFFFFFFFFFFFFULL * m);
+    r &amp;= (d[1] &lt;= 0xFFFFFFFFFFFFFULL * m);
+    r &amp;= (d[2] &lt;= 0xFFFFFFFFFFFFFULL * m);
+    r &amp;= (d[3] &lt;= 0xFFFFFFFFFFFFFULL * m);
+    r &amp;= (d[4] &lt;= 0x0FFFFFFFFFFFFULL * m);
+    r &amp;= (a-&gt;magnitude &gt;= 0);
+    r &amp;= (a-&gt;magnitude &lt;= 2048);
+    if (a-&gt;normalized) {
+        r &amp;= (a-&gt;magnitude &lt;= 1);
+        if (r &amp;&amp; (d[4] == 0x0FFFFFFFFFFFFULL) &amp;&amp; ((d[3] &amp; d[2] &amp; d[1]) == 0xFFFFFFFFFFFFFULL)) {
+            r &amp;= (d[0] &lt; 0xFFFFEFFFFFC2FULL);
+        }
+    }
+    VERIFY_CHECK(r == 1);
+}
+<A NAME="7"></A>#endif
+
+static void secp256k1_fe_normalize(secp256k1_fe *r) {
+<FONT color="#c58917"><div style="position:absolute;left:0"><A HREF="javascript:ZweiFrames('match19-0.html#7',2,'match19-top.html#7',1)"><IMG SRC="back.gif" ALT="other" BORDER="0" ALIGN="left"></A></div><B>    uint64_t t0 = r-&gt;n[0], t1 = r-&gt;n[1], t2 = r-&gt;n[2], t3 = r-&gt;n[3], t4 = r-&gt;n[4];
+
+    /* Reduce t4 at the start so there will be at most a single carry from the first pass */
+    uint64_t m;
+    uint64_t x = t4 &gt;&gt; 48; t4 &amp;= 0x0FFFFFFFFFFFFULL;
+
+    /* The first pass ensures the magnitude is 1, ... */
+    t0 += x * 0x1000003D1ULL;
+    t1 += (t0 &gt;&gt; 52); t0 &amp;= 0xFFFFFFFFFFFFFULL;
+    t2 += (t1 &gt;&gt; 52); t1 &amp;= 0xFFFFFFFFFFFFFULL; m = t1;
+    t3 += (t2 &gt;&gt; 52); t2 &amp;= 0xFFFFFFFFFFFFFULL; m &amp;= t2;
+    t4 += (t3 &gt;&gt; 52); t3 &amp;= 0xFFFFFFFFFFFFFULL; m &amp;= t3;
+
+    /* ... except for a possible carry at bit 48 of t4 (i.e. bit 256 of the field element) */
+    VERIFY_CHECK(t4 &gt;&gt; 49 == 0);
+
+    /* At most a single final reduction is needed; check if the value is &gt;= the field characteristic */
+    x = (t4 &gt;&gt; 48) | ((t4 == 0x0FFFFFFFFFFFFULL) &amp; (m == 0xFFFFFFFFFFFFFULL)
+        &amp; (t0 &gt;= 0xFFFFEFFFFFC2FULL));
+
+    /* Apply the final reduction (for constant-time behaviour, we do it always) */
+    t0 += x * 0x1000003D1ULL;
+    t1 += (t0 &gt;&gt; 52); t0 &amp;= 0xFFFFFFFFFFFFFULL;
+    t2 += (t1 &gt;&gt; 52); t1 &amp;= 0xFFFFFFFFFFFFFULL;
+    t3 += (t2 &gt;&gt; 52); t2 &amp;= 0xFFFFFFFFFFFFFULL;
+    t4 += (t3 &gt;&gt; 52); t3 &amp;= 0xFFFFFFFFFFFFFULL;
+
+    /* If t4 didn't carry to bit 48 already, then it should have after any final reduction */
+    VERIFY_CHECK(t4 &gt;&gt; 48 == x);
+
+    /* Mask off the possible multiple of 2^256 from the final reduction */
+    t4 &amp;= 0x0FFFFFFFFFFFFULL;
+
+    r-&gt;n[0] = t0; r-&gt;n[1] = t1; r-&gt;n[2] = t2; r-&gt;n[3] = t3; r-&gt;n[4] = t4;
+
+#ifdef VERIFY
+    r-&gt;magnitude = 1;
+    r-&gt;normalized = 1;
+    secp256k1_fe_verify(r);
+#endif
+<A NAME="2"></A>}
+
+static void secp256k1_fe_normalize_weak(secp256k1_fe *r) {</B></FONT>
+<FONT color="#77bfc7"><div style="position:absolute;left:0"><A HREF="javascript:ZweiFrames('match19-0.html#2',2,'match19-top.html#2',1)"><IMG SRC="back.gif" ALT="other" BORDER="0" ALIGN="left"></A></div><B>    uint64_t t0 = r-&gt;n[0], t1 = r-&gt;n[1], t2 = r-&gt;n[2], t3 = r-&gt;n[3], t4 = r-&gt;n[4];
+
+    /* Reduce t4 at the start so there will be at most a single carry from the first pass */
+    uint64_t x = t4 &gt;&gt; 48; t4 &amp;= 0x0FFFFFFFFFFFFULL;
+
+    /* The first pass ensures the magnitude is 1, ... */
+    t0 += x * 0x1000003D1ULL;
+    t1 += (t0 &gt;&gt; 52); t0 &amp;= 0xFFFFFFFFFFFFFULL;
+    t2 += (t1 &gt;&gt; 52); t1 &amp;= 0xFFFFFFFFFFFFFULL;
+    t3 += (t2 &gt;&gt; 52); t2 &amp;= 0xFFFFFFFFFFFFFULL;
+    t4 += (t3 &gt;&gt; 52); t3 &amp;= 0xFFFFFFFFFFFFFULL;
+
+    /* ... except for a possible carry at bit 48 of t4 (i.e. bit 256 of the field element) */
+    VERIFY_CHECK(t4 &gt;&gt; 49 == 0);
+
+    r-&gt;n[0] = t0; r-&gt;n[1] = t1; r-&gt;n[2] = t2; r-&gt;n[3] = t3; r-&gt;n[4] = t4;
+
+#ifdef VERIFY
+    r-&gt;magnitude = 1;
+    secp256k1_fe_verify(r);
+<A NAME="0"></A>#endif
+}
+
+</B></FONT><FONT color="#0000ff"><div style="position:absolute;left:0"><A HREF="javascript:ZweiFrames('match19-0.html#0',2,'match19-top.html#0',1)"><IMG SRC="back.gif" ALT="other" BORDER="0" ALIGN="left"></A></div><B>static void secp256k1_fe_normalize_var(secp256k1_fe *r) {
+    uint64_t t0 = r-&gt;n[0], t1 = r-&gt;n[1], t2 = r-&gt;n[2], t3 = r-&gt;n[3], t4 = r-&gt;n[4];
+
+    /* Reduce t4 at the start so there will be at most a single carry from the first pass */
+    uint64_t m;
+    uint64_t x = t4 &gt;&gt; 48; t4 &amp;= 0x0FFFFFFFFFFFFULL;
+
+    /* The first pass ensures the magnitude is 1, ... */
+    t0 += x * 0x1000003D1ULL;
+    t1 += (t0 &gt;&gt; 52); t0 &amp;= 0xFFFFFFFFFFFFFULL;
+    t2 += (t1 &gt;&gt; 52); t1 &amp;= 0xFFFFFFFFFFFFFULL; m = t1;
+    t3 += (t2 &gt;&gt; 52); t2 &amp;= 0xFFFFFFFFFFFFFULL; m &amp;= t2;
+    t4 += (t3 &gt;&gt; 52); t3 &amp;= 0xFFFFFFFFFFFFFULL; m &amp;= t3;
+
+    /* ... except for a possible carry at bit 48 of t4 (i.e. bit 256 of the field element) */
+    VERIFY_CHECK(t4 &gt;&gt; 49 == 0);
+
+    /* At most a single final reduction is needed; check if the value is &gt;= the field characteristic */
+    x = (t4 &gt;&gt; 48) | ((t4 == 0x0FFFFFFFFFFFFULL) &amp; (m == 0xFFFFFFFFFFFFFULL)</B></FONT>
+        &amp; (t0 &gt;= 0xFFFFEFFFFFC2FULL));
+
+    if (x) {
+        t0 += 0x1000003D1ULL;
+        t1 += (t0 &gt;&gt; 52); t0 &amp;= 0xFFFFFFFFFFFFFULL;
+        t2 += (t1 &gt;&gt; 52); t1 &amp;= 0xFFFFFFFFFFFFFULL;
+        t3 += (t2 &gt;&gt; 52); t2 &amp;= 0xFFFFFFFFFFFFFULL;
+        t4 += (t3 &gt;&gt; 52); t3 &amp;= 0xFFFFFFFFFFFFFULL;
+
+        /* If t4 didn't carry to bit 48 already, then it should have after any final reduction */
+        VERIFY_CHECK(t4 &gt;&gt; 48 == x);
+
+        /* Mask off the possible multiple of 2^256 from the final reduction */
+        t4 &amp;= 0x0FFFFFFFFFFFFULL;
+    }
+
+    r-&gt;n[0] = t0; r-&gt;n[1] = t1; r-&gt;n[2] = t2; r-&gt;n[3] = t3; r-&gt;n[4] = t4;
+
+#ifdef VERIFY
+    r-&gt;magnitude = 1;
+    r-&gt;normalized = 1;
+    secp256k1_fe_verify(r);
+#endif
+<A NAME="1"></A>}
+
+static int secp256k1_fe_normalizes_to_zero(secp256k1_fe *r) {
+<FONT color="#f63526"><div style="position:absolute;left:0"><A HREF="javascript:ZweiFrames('match19-0.html#1',2,'match19-top.html#1',1)"><IMG SRC="back.gif" ALT="other" BORDER="0" ALIGN="left"></A></div><B>    uint64_t t0 = r-&gt;n[0], t1 = r-&gt;n[1], t2 = r-&gt;n[2], t3 = r-&gt;n[3], t4 = r-&gt;n[4];
+
+    /* z0 tracks a possible raw value of 0, z1 tracks a possible raw value of P */
+    uint64_t z0, z1;
+
+    /* Reduce t4 at the start so there will be at most a single carry from the first pass */
+    uint64_t x = t4 &gt;&gt; 48; t4 &amp;= 0x0FFFFFFFFFFFFULL;
+
+    /* The first pass ensures the magnitude is 1, ... */
+    t0 += x * 0x1000003D1ULL;
+    t1 += (t0 &gt;&gt; 52); t0 &amp;= 0xFFFFFFFFFFFFFULL; z0  = t0; z1  = t0 ^ 0x1000003D0ULL;
+    t2 += (t1 &gt;&gt; 52); t1 &amp;= 0xFFFFFFFFFFFFFULL; z0 |= t1; z1 &amp;= t1;
+    t3 += (t2 &gt;&gt; 52); t2 &amp;= 0xFFFFFFFFFFFFFULL; z0 |= t2; z1 &amp;= t2;
+    t4 += (t3 &gt;&gt; 52); t3 &amp;= 0xFFFFFFFFFFFFFULL; z0 |= t3; z1 &amp;= t3;
+                                                z0 |= t4; z1 &amp;= t4 ^ 0xF000000000000ULL;
+
+    /* ... except for a possible carry at bit 48 of t4 (i.e. bit 256 of the field element) */
+    VERIFY_CHECK(t4 &gt;&gt; 49 == 0);
+
+    return (z0 == 0) | (z1 == 0xFFFFFFFFFFFFFULL);
+}
+
+static int secp256k1_fe_normalizes_to_zero_var(secp256k1_fe *r) {</B></FONT>
+    uint64_t t0, t1, t2, t3, t4;
+    uint64_t z0, z1;
+    uint64_t x;
+
+    t0 = r-&gt;n[0];
+    t4 = r-&gt;n[4];
+
+    /* Reduce t4 at the start so there will be at most a single carry from the first pass */
+    x = t4 &gt;&gt; 48;
+
+    /* The first pass ensures the magnitude is 1, ... */
+    t0 += x * 0x1000003D1ULL;
+
+    /* z0 tracks a possible raw value of 0, z1 tracks a possible raw value of P */
+    z0 = t0 &amp; 0xFFFFFFFFFFFFFULL;
+    z1 = z0 ^ 0x1000003D0ULL;
+
+    /* Fast return path should catch the majority of cases */
+    if ((z0 != 0ULL) &amp; (z1 != 0xFFFFFFFFFFFFFULL)) {
+<A NAME="6"></A>        return 0;
+    }
+
+<FONT color="#50ebec"><div style="position:absolute;left:0"><A HREF="javascript:ZweiFrames('match19-0.html#6',2,'match19-top.html#6',1)"><IMG SRC="back.gif" ALT="other" BORDER="0" ALIGN="left"></A></div><B>    t1 = r-&gt;n[1];
+    t2 = r-&gt;n[2];
+    t3 = r-&gt;n[3];
+
+    t4 &amp;= 0x0FFFFFFFFFFFFULL;
+
+    t1 += (t0 &gt;&gt; 52);
+    t2 += (t1 &gt;&gt; 52); t1 &amp;= 0xFFFFFFFFFFFFFULL; z0 |= t1; z1 &amp;= t1;
+    t3 += (t2 &gt;&gt; 52); t2 &amp;= 0xFFFFFFFFFFFFFULL; z0 |= t2; z1 &amp;= t2;
+    t4 += (t3 &gt;&gt; 52); t3 &amp;= 0xFFFFFFFFFFFFFULL; z0 |= t3; z1 &amp;= t3;
+                                                z0 |= t4; z1 &amp;= t4 ^ 0xF000000000000ULL;
+
+    /* ... except for a possible carry at bit 48 of t4 (i.e. bit 256 of the field element) */
+    VERIFY_CHECK(t4 &gt;&gt; 49 == 0);
+
+    return (z0 == 0) | (z1 == 0xFFFFFFFFFFFFFULL);
+<A NAME="5"></A>}
+
+SECP256K1_INLINE static void secp256k1_fe_set_int(secp256k1_fe *r, int a) {</B></FONT>
+<FONT color="#c8c2a7"><div style="position:absolute;left:0"><A HREF="javascript:ZweiFrames('match19-0.html#5',2,'match19-top.html#5',1)"><IMG SRC="back.gif" ALT="other" BORDER="0" ALIGN="left"></A></div><B>    r-&gt;n[0] = a;
+    r-&gt;n[1] = r-&gt;n[2] = r-&gt;n[3] = r-&gt;n[4] = 0;
+#ifdef VERIFY
+    r-&gt;magnitude = 1;
+    r-&gt;normalized = 1;
+    secp256k1_fe_verify(r);
+#endif
+}
+
+SECP256K1_INLINE static int secp256k1_fe_is_zero(const secp256k1_fe *a) {</B></FONT>
+    const uint64_t *t = a-&gt;n;
+#ifdef VERIFY
+    VERIFY_CHECK(a-&gt;normalized);
+    secp256k1_fe_verify(a);
+#endif
+    return (t[0] | t[1] | t[2] | t[3] | t[4]) == 0;
+}
+
+SECP256K1_INLINE static int secp256k1_fe_is_odd(const secp256k1_fe *a) {
+#ifdef VERIFY
+    VERIFY_CHECK(a-&gt;normalized);
+    secp256k1_fe_verify(a);
+#endif
+    return a-&gt;n[0] &amp; 1;
+}
+
+SECP256K1_INLINE static void secp256k1_fe_clear(secp256k1_fe *a) {
+    int i;
+#ifdef VERIFY
+    a-&gt;magnitude = 0;
+    a-&gt;normalized = 1;
+#endif
+    for (i=0; i&lt;5; i++) {
+        a-&gt;n[i] = 0;
+    }
+}
+
+static int secp256k1_fe_cmp_var(const secp256k1_fe *a, const secp256k1_fe *b) {
+    int i;
+#ifdef VERIFY
+    VERIFY_CHECK(a-&gt;normalized);
+    VERIFY_CHECK(b-&gt;normalized);
+    secp256k1_fe_verify(a);
+    secp256k1_fe_verify(b);
+#endif
+    for (i = 4; i &gt;= 0; i--) {
+        if (a-&gt;n[i] &gt; b-&gt;n[i]) {
+            return 1;
+        }
+        if (a-&gt;n[i] &lt; b-&gt;n[i]) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+static int secp256k1_fe_set_b32(secp256k1_fe *r, const unsigned char *a) {
+    r-&gt;n[0] = (uint64_t)a[31]
+            | ((uint64_t)a[30] &lt;&lt; 8)
+            | ((uint64_t)a[29] &lt;&lt; 16)
+            | ((uint64_t)a[28] &lt;&lt; 24)
+            | ((uint64_t)a[27] &lt;&lt; 32)
+            | ((uint64_t)a[26] &lt;&lt; 40)
+            | ((uint64_t)(a[25] &amp; 0xF)  &lt;&lt; 48);
+    r-&gt;n[1] = (uint64_t)((a[25] &gt;&gt; 4) &amp; 0xF)
+            | ((uint64_t)a[24] &lt;&lt; 4)
+            | ((uint64_t)a[23] &lt;&lt; 12)
+            | ((uint64_t)a[22] &lt;&lt; 20)
+            | ((uint64_t)a[21] &lt;&lt; 28)
+            | ((uint64_t)a[20] &lt;&lt; 36)
+            | ((uint64_t)a[19] &lt;&lt; 44);
+    r-&gt;n[2] = (uint64_t)a[18]
+            | ((uint64_t)a[17] &lt;&lt; 8)
+            | ((uint64_t)a[16] &lt;&lt; 16)
+            | ((uint64_t)a[15] &lt;&lt; 24)
+            | ((uint64_t)a[14] &lt;&lt; 32)
+            | ((uint64_t)a[13] &lt;&lt; 40)
+            | ((uint64_t)(a[12] &amp; 0xF) &lt;&lt; 48);
+    r-&gt;n[3] = (uint64_t)((a[12] &gt;&gt; 4) &amp; 0xF)
+            | ((uint64_t)a[11] &lt;&lt; 4)
+            | ((uint64_t)a[10] &lt;&lt; 12)
+            | ((uint64_t)a[9]  &lt;&lt; 20)
+            | ((uint64_t)a[8]  &lt;&lt; 28)
+            | ((uint64_t)a[7]  &lt;&lt; 36)
+            | ((uint64_t)a[6]  &lt;&lt; 44);
+    r-&gt;n[4] = (uint64_t)a[5]
+            | ((uint64_t)a[4] &lt;&lt; 8)
+            | ((uint64_t)a[3] &lt;&lt; 16)
+            | ((uint64_t)a[2] &lt;&lt; 24)
+            | ((uint64_t)a[1] &lt;&lt; 32)
+            | ((uint64_t)a[0] &lt;&lt; 40);
+    if (r-&gt;n[4] == 0x0FFFFFFFFFFFFULL &amp;&amp; (r-&gt;n[3] &amp; r-&gt;n[2] &amp; r-&gt;n[1]) == 0xFFFFFFFFFFFFFULL &amp;&amp; r-&gt;n[0] &gt;= 0xFFFFEFFFFFC2FULL) {
+        return 0;
+    }
+#ifdef VERIFY
+    r-&gt;magnitude = 1;
+    r-&gt;normalized = 1;
+<A NAME="3"></A>    secp256k1_fe_verify(r);
+#endif
+    return 1;
+<FONT color="#6cc417"><div style="position:absolute;left:0"><A HREF="javascript:ZweiFrames('match19-0.html#3',2,'match19-top.html#3',1)"><IMG SRC="back.gif" ALT="other" BORDER="0" ALIGN="left"></A></div><B>}
+
+/** Convert a field element to a 32-byte big endian value. Requires the input to be normalized */
+static void secp256k1_fe_get_b32(unsigned char *r, const secp256k1_fe *a) {
+#ifdef VERIFY
+    VERIFY_CHECK(a-&gt;normalized);
+    secp256k1_fe_verify(a);
+#endif
+    r[0] = (a-&gt;n[4] &gt;&gt; 40) &amp; 0xFF;
+    r[1] = (a-&gt;n[4] &gt;&gt; 32) &amp; 0xFF;
+    r[2] = (a-&gt;n[4] &gt;&gt; 24) &amp; 0xFF;
+    r[3] = (a-&gt;n[4] &gt;&gt; 16) &amp; 0xFF;
+    r[4] = (a-&gt;n[4] &gt;&gt; 8) &amp; 0xFF;
+    r[5] = a-&gt;n[4] &amp; 0xFF;
+    r[6] = (a-&gt;n[3] &gt;&gt; 44) &amp; 0xFF;
+    r[7] = (a-&gt;n[3] &gt;&gt; 36) &amp; 0xFF;
+    r[8] = (a-&gt;n[3] &gt;&gt; 28) &amp; 0xFF;
+    r[9] = (a-&gt;n[3] &gt;&gt; 20) &amp; 0xFF;
+    r[10] = (a-&gt;n[3] &gt;&gt; 12) &amp; 0xFF;
+    r[11] = (a-&gt;n[3] &gt;&gt; 4) &amp; 0xFF;
+    r[12] = ((a-&gt;n[2] &gt;&gt; 48) &amp; 0xF) | ((a-&gt;n[3] &amp; 0xF) &lt;&lt; 4);
+    r[13] = (a-&gt;n[2] &gt;&gt; 40) &amp; 0xFF;
+    r[14] = (a-&gt;n[2] &gt;&gt; 32) &amp; 0xFF;
+    r[15] = (a-&gt;n[2] &gt;&gt; 24) &amp; 0xFF;
+    r[16] = (a-&gt;n[2] &gt;&gt; 16) &amp; 0xFF;
+    r[17] = (a-&gt;n[2] &gt;&gt; 8) &amp; 0xFF;
+    r[18] = a-&gt;n[2] &amp; 0xFF;
+    r[19] = (a-&gt;n[1] &gt;&gt; 44) &amp; 0xFF;
+    r[20] = (a-&gt;n[1] &gt;&gt; 36) &amp; 0xFF;
+    r[21] = (a-&gt;n[1] &gt;&gt; 28) &amp; 0xFF;
+    r[22] = (a-&gt;n[1] &gt;&gt; 20) &amp; 0xFF;
+    r[23] = (a-&gt;n[1] &gt;&gt; 12) &amp; 0xFF;
+    r[24] = (a-&gt;n[1] &gt;&gt; 4) &amp; 0xFF;
+    r[25] = ((a-&gt;n[0] &gt;&gt; 48) &amp; 0xF) | ((a-&gt;n[1] &amp; 0xF) &lt;&lt; 4);
+    r[26] = (a-&gt;n[0] &gt;&gt; 40) &amp; 0xFF;
+    r[27] = (a-&gt;n[0] &gt;&gt; 32) &amp; 0xFF;
+    r[28] = (a-&gt;n[0] &gt;&gt; 24) &amp; 0xFF;
+    r[29] = (a-&gt;n[0] &gt;&gt; 16) &amp; 0xFF;
+    r[30] = (a-&gt;n[0] &gt;&gt; 8) &amp; 0xFF;
+    r[31] = a-&gt;n[0] &amp; 0xFF;
+}
+
+SECP256K1_INLINE static void secp256k1_fe_negate(secp256k1_fe *r, const secp256k1_fe *a, int m) {</B></FONT>
+#ifdef VERIFY
+    VERIFY_CHECK(a-&gt;magnitude &lt;= m);
+    secp256k1_fe_verify(a);
+#endif
+    r-&gt;n[0] = 0xFFFFEFFFFFC2FULL * 2 * (m + 1) - a-&gt;n[0];
+    r-&gt;n[1] = 0xFFFFFFFFFFFFFULL * 2 * (m + 1) - a-&gt;n[1];
+    r-&gt;n[2] = 0xFFFFFFFFFFFFFULL * 2 * (m + 1) - a-&gt;n[2];
+    r-&gt;n[3] = 0xFFFFFFFFFFFFFULL * 2 * (m + 1) - a-&gt;n[3];
+    r-&gt;n[4] = 0x0FFFFFFFFFFFFULL * 2 * (m + 1) - a-&gt;n[4];
+#ifdef VERIFY
+    r-&gt;magnitude = m + 1;
+    r-&gt;normalized = 0;
+    secp256k1_fe_verify(r);
+#endif
+}
+
+SECP256K1_INLINE static void secp256k1_fe_mul_int(secp256k1_fe *r, int a) {
+    r-&gt;n[0] *= a;
+    r-&gt;n[1] *= a;
+    r-&gt;n[2] *= a;
+    r-&gt;n[3] *= a;
+    r-&gt;n[4] *= a;
+#ifdef VERIFY
+    r-&gt;magnitude *= a;
+<A NAME="4"></A>    r-&gt;normalized = 0;
+    secp256k1_fe_verify(r);
+#endif
+<FONT color="#151b8d"><div style="position:absolute;left:0"><A HREF="javascript:ZweiFrames('match19-0.html#4',2,'match19-top.html#4',1)"><IMG SRC="back.gif" ALT="other" BORDER="0" ALIGN="left"></A></div><B>}
+
+SECP256K1_INLINE static void secp256k1_fe_add(secp256k1_fe *r, const secp256k1_fe *a) {
+#ifdef VERIFY
+    secp256k1_fe_verify(a);
+#endif
+    r-&gt;n[0] += a-&gt;n[0];
+    r-&gt;n[1] += a-&gt;n[1];
+    r-&gt;n[2] += a-&gt;n[2];
+    r-&gt;n[3] += a-&gt;n[3];
+    r-&gt;n[4] += a-&gt;n[4];
+#ifdef VERIFY
+    r-&gt;magnitude += a-&gt;magnitude;
+    r-&gt;normalized = 0;</B></FONT>
+    secp256k1_fe_verify(r);
+#endif
+}
+
+static void secp256k1_fe_mul(secp256k1_fe *r, const secp256k1_fe *a, const secp256k1_fe * SECP256K1_RESTRICT b) {
+#ifdef VERIFY
+    VERIFY_CHECK(a-&gt;magnitude &lt;= 8);
+    VERIFY_CHECK(b-&gt;magnitude &lt;= 8);
+    secp256k1_fe_verify(a);
+    secp256k1_fe_verify(b);
+    VERIFY_CHECK(r != b);
+#endif
+    secp256k1_fe_mul_inner(r-&gt;n, a-&gt;n, b-&gt;n);
+#ifdef VERIFY
+    r-&gt;magnitude = 1;
+    r-&gt;normalized = 0;
+    secp256k1_fe_verify(r);
+#endif
+}
+
+static void secp256k1_fe_sqr(secp256k1_fe *r, const secp256k1_fe *a) {
+#ifdef VERIFY
+    VERIFY_CHECK(a-&gt;magnitude &lt;= 8);
+    secp256k1_fe_verify(a);
+#endif
+    secp256k1_fe_sqr_inner(r-&gt;n, a-&gt;n);
+#ifdef VERIFY
+    r-&gt;magnitude = 1;
+    r-&gt;normalized = 0;
+    secp256k1_fe_verify(r);
+#endif
+}
+
+static SECP256K1_INLINE void secp256k1_fe_cmov(secp256k1_fe *r, const secp256k1_fe *a, int flag) {
+    uint64_t mask0, mask1;
+    mask0 = flag + ~((uint64_t)0);
+    mask1 = ~mask0;
+    r-&gt;n[0] = (r-&gt;n[0] &amp; mask0) | (a-&gt;n[0] &amp; mask1);
+    r-&gt;n[1] = (r-&gt;n[1] &amp; mask0) | (a-&gt;n[1] &amp; mask1);
+    r-&gt;n[2] = (r-&gt;n[2] &amp; mask0) | (a-&gt;n[2] &amp; mask1);
+    r-&gt;n[3] = (r-&gt;n[3] &amp; mask0) | (a-&gt;n[3] &amp; mask1);
+    r-&gt;n[4] = (r-&gt;n[4] &amp; mask0) | (a-&gt;n[4] &amp; mask1);
+#ifdef VERIFY
+    if (a-&gt;magnitude &gt; r-&gt;magnitude) {
+        r-&gt;magnitude = a-&gt;magnitude;
+    }
+    r-&gt;normalized &amp;= a-&gt;normalized;
+#endif
+}
+
+static SECP256K1_INLINE void secp256k1_fe_storage_cmov(secp256k1_fe_storage *r, const secp256k1_fe_storage *a, int flag) {
+<A NAME="8"></A>    uint64_t mask0, mask1;
+    mask0 = flag + ~((uint64_t)0);
+    mask1 = ~mask0;
+<FONT color="#bce954"><div style="position:absolute;left:0"><A HREF="javascript:ZweiFrames('match19-0.html#8',2,'match19-top.html#8',1)"><IMG SRC="back.gif" ALT="other" BORDER="0" ALIGN="left"></A></div><B>    r-&gt;n[0] = (r-&gt;n[0] &amp; mask0) | (a-&gt;n[0] &amp; mask1);
+    r-&gt;n[1] = (r-&gt;n[1] &amp; mask0) | (a-&gt;n[1] &amp; mask1);
+    r-&gt;n[2] = (r-&gt;n[2] &amp; mask0) | (a-&gt;n[2] &amp; mask1);
+    r-&gt;n[3] = (r-&gt;n[3] &amp; mask0) | (a-&gt;n[3] &amp; mask1);
+}
+
+static void secp256k1_fe_to_storage(secp256k1_fe_storage *r, const secp256k1_fe *a) {
+#ifdef VERIFY
+    VERIFY_CHECK(a-&gt;normalized);
+#endif
+    r-&gt;n[0] = a-&gt;n[0] | a-&gt;n[1] &lt;&lt; 52;
+    r-&gt;n[1] = a-&gt;n[1] &gt;&gt; 12 | a-&gt;n[2] &lt;&lt; 40;
+    r-&gt;n[2] = a-&gt;n[2] &gt;&gt; 24 | a-&gt;n[3] &lt;&lt; 28;
+    r-&gt;n[3] = a-&gt;n[3] &gt;&gt; 36 | a-&gt;n[4] &lt;&lt; 16;
+}
+
+static SECP256K1_INLINE void secp256k1_fe_from_storage(secp256k1_fe *r, const secp256k1_fe_storage *a) {</B></FONT>
+    r-&gt;n[0] = a-&gt;n[0] &amp; 0xFFFFFFFFFFFFFULL;
+    r-&gt;n[1] = a-&gt;n[0] &gt;&gt; 52 | ((a-&gt;n[1] &lt;&lt; 12) &amp; 0xFFFFFFFFFFFFFULL);
+    r-&gt;n[2] = a-&gt;n[1] &gt;&gt; 40 | ((a-&gt;n[2] &lt;&lt; 24) &amp; 0xFFFFFFFFFFFFFULL);
+    r-&gt;n[3] = a-&gt;n[2] &gt;&gt; 28 | ((a-&gt;n[3] &lt;&lt; 36) &amp; 0xFFFFFFFFFFFFFULL);
+    r-&gt;n[4] = a-&gt;n[3] &gt;&gt; 16;
+#ifdef VERIFY
+    r-&gt;magnitude = 1;
+    r-&gt;normalized = 1;
+#endif
+}
+
+#endif /* SECP256K1_FIELD_REPR_IMPL_H */
+</PRE>
+</BODY>
+</HTML>

@@ -1,0 +1,70 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+<HEAD>
+ <TITLE>bitcoin-atom-master_src_support_allocators_zeroafterfree.h</TITLE>
+<META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <script type="text/javascript">
+  <!--
+   function ZweiFrames(URL1,F1,URL2,F2)
+   {
+    parent.frames[F1].location.href=URL1;
+    parent.frames[F2].location.href=URL2;
+   }
+  //-->
+  </script>
+</HEAD>
+<BODY BGCOLOR="#ffffff">
+<HR>
+<H3><CENTER>bitcoin-atom-master_src_support_allocators_zeroafterfree.h</CENTER></H3><HR>
+<PRE>
+// Copyright (c) 2009-2010 Satoshi Nakamoto
+// Copyright (c) 2009-2017 The Bitcoin Core developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
+#ifndef BITCOIN_SUPPORT_ALLOCATORS_ZEROAFTERFREE_H
+#define BITCOIN_SUPPORT_ALLOCATORS_ZEROAFTERFREE_H
+
+#include &lt;support/cleanse.h&gt;
+
+<A NAME="0"></A>#include &lt;memory&gt;
+#include &lt;vector&gt;
+
+<FONT color="#0000ff"><A HREF="javascript:ZweiFrames('match21-1.html#0',3,'match21-top.html#0',1)"><IMG SRC="forward.gif" ALT="other" BORDER="0" ALIGN="right"></A><B>template &lt;typename T&gt;
+struct zero_after_free_allocator : public std::allocator&lt;T&gt; {
+    // MSVC8 default copy constructor is broken
+    typedef std::allocator&lt;T&gt; base;
+    typedef typename base::size_type size_type;
+    typedef typename base::difference_type difference_type;
+    typedef typename base::pointer pointer;
+    typedef typename base::const_pointer const_pointer;
+    typedef typename base::reference reference;
+    typedef typename base::const_reference const_reference;
+    typedef typename base::value_type value_type;
+    zero_after_free_allocator() noexcept {}
+    zero_after_free_allocator(const zero_after_free_allocator&amp; a) noexcept : base(a) {}
+    template &lt;typename U&gt;
+    zero_after_free_allocator(const zero_after_free_allocator&lt;U&gt;&amp; a) noexcept : base(a)
+    {
+    }
+    ~zero_after_free_allocator() noexcept {}
+    template &lt;typename _Other&gt;
+    struct rebind {
+        typedef zero_after_free_allocator&lt;_Other&gt; other;
+    };</B></FONT>
+
+    void deallocate(T* p, std::size_t n)
+    {
+        if (p != nullptr)
+            memory_cleanse(p, sizeof(T) * n);
+        std::allocator&lt;T&gt;::deallocate(p, n);
+    }
+};
+
+// Byte-vector that clears its contents before deletion.
+typedef std::vector&lt;char, zero_after_free_allocator&lt;char&gt; &gt; CSerializeData;
+
+#endif // BITCOIN_SUPPORT_ALLOCATORS_ZEROAFTERFREE_H
+</PRE>
+</BODY>
+</HTML>

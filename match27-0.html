@@ -1,0 +1,205 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+<HEAD>
+ <TITLE>bitcoin-atom-master_src_test_scriptnum10.h</TITLE>
+<META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <script type="text/javascript">
+  <!--
+   function ZweiFrames(URL1,F1,URL2,F2)
+   {
+    parent.frames[F1].location.href=URL1;
+    parent.frames[F2].location.href=URL2;
+   }
+  //-->
+  </script>
+</HEAD>
+<BODY BGCOLOR="#ffffff">
+<HR>
+<H3><CENTER>bitcoin-atom-master_src_test_scriptnum10.h</CENTER></H3><HR>
+<PRE>
+// Copyright (c) 2009-2010 Satoshi Nakamoto
+// Copyright (c) 2009-2017 The Bitcoin Core developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
+#ifndef BITCOIN_TEST_SCRIPTNUM10_H
+#define BITCOIN_TEST_SCRIPTNUM10_H
+
+#include &lt;algorithm&gt;
+#include &lt;limits&gt;
+#include &lt;stdexcept&gt;
+#include &lt;stdint.h&gt;
+#include &lt;string&gt;
+<A NAME="0"></A>#include &lt;vector&gt;
+#include &lt;assert.h&gt;
+
+<FONT color="#0000ff"><A HREF="javascript:ZweiFrames('match27-1.html#0',3,'match27-top.html#0',1)"><IMG SRC="forward.gif" ALT="other" BORDER="0" ALIGN="right"></A><B>class scriptnum10_error : public std::runtime_error
+{
+public:
+    explicit scriptnum10_error(const std::string&amp; str) : std::runtime_error(str) {}
+};
+
+class CScriptNum10
+{
+/**
+ * The ScriptNum implementation from Bitcoin Core 0.10.0, for cross-comparison.
+ */
+public:
+
+    explicit CScriptNum10(const int64_t&amp; n)
+    {
+        m_value = n;
+    }
+
+    static const size_t nDefaultMaxNumSize = 4;
+
+    explicit CScriptNum10(const std::vector&lt;unsigned char&gt;&amp; vch, bool fRequireMinimal,
+                        const size_t nMaxNumSize = nDefaultMaxNumSize)
+    {
+        if (vch.size() &gt; nMaxNumSize) {
+            throw scriptnum10_error(&quot;script number overflow&quot;);
+        }
+        if (fRequireMinimal &amp;&amp; vch.size() &gt; 0) {
+            // Check that the number is encoded with the minimum possible
+            // number of bytes.
+            //
+            // If the most-significant-byte - excluding the sign bit - is zero
+            // then we're not minimal. Note how this test also rejects the
+            // negative-zero encoding, 0x80.
+            if ((vch.back() &amp; 0x7f) == 0) {
+                // One exception: if there's more than one byte and the most
+                // significant bit of the second-most-significant-byte is set
+                // it would conflict with the sign bit. An example of this case
+                // is +-255, which encode to 0xff00 and 0xff80 respectively.
+                // (big-endian).
+                if (vch.size() &lt;= 1 || (vch[vch.size() - 2] &amp; 0x80) == 0) {
+                    throw scriptnum10_error(&quot;non-minimally encoded script number&quot;);
+                }
+            }
+        }
+        m_value = set_vch(vch);
+    }
+
+    inline bool operator==(const int64_t&amp; rhs) const    { return m_value == rhs; }
+    inline bool operator!=(const int64_t&amp; rhs) const    { return m_value != rhs; }
+    inline bool operator&lt;=(const int64_t&amp; rhs) const    { return m_value &lt;= rhs; }
+    inline bool operator&lt; (const int64_t&amp; rhs) const    { return m_value &lt;  rhs; }
+    inline bool operator&gt;=(const int64_t&amp; rhs) const    { return m_value &gt;= rhs; }
+    inline bool operator&gt; (const int64_t&amp; rhs) const    { return m_value &gt;  rhs; }
+
+    inline bool operator==(const CScriptNum10&amp; rhs) const { return operator==(rhs.m_value); }
+    inline bool operator!=(const CScriptNum10&amp; rhs) const { return operator!=(rhs.m_value); }
+    inline bool operator&lt;=(const CScriptNum10&amp; rhs) const { return operator&lt;=(rhs.m_value); }
+    inline bool operator&lt; (const CScriptNum10&amp; rhs) const { return operator&lt; (rhs.m_value); }
+    inline bool operator&gt;=(const CScriptNum10&amp; rhs) const { return operator&gt;=(rhs.m_value); }
+    inline bool operator&gt; (const CScriptNum10&amp; rhs) const { return operator&gt; (rhs.m_value); }
+
+    inline CScriptNum10 operator+(   const int64_t&amp; rhs)    const { return CScriptNum10(m_value + rhs);}
+    inline CScriptNum10 operator-(   const int64_t&amp; rhs)    const { return CScriptNum10(m_value - rhs);}
+    inline CScriptNum10 operator+(   const CScriptNum10&amp; rhs) const { return operator+(rhs.m_value);   }
+    inline CScriptNum10 operator-(   const CScriptNum10&amp; rhs) const { return operator-(rhs.m_value);   }
+
+    inline CScriptNum10&amp; operator+=( const CScriptNum10&amp; rhs)       { return operator+=(rhs.m_value);  }
+<A NAME="1"></A>    inline CScriptNum10&amp; operator-=( const CScriptNum10&amp; rhs)       { return operator-=(rhs.m_value);  }
+
+    inline CScriptNum10 operator-()                         const</B></FONT>
+<FONT color="#f63526"><A HREF="javascript:ZweiFrames('match27-1.html#1',3,'match27-top.html#1',1)"><IMG SRC="forward.gif" ALT="other" BORDER="0" ALIGN="right"></A><B>    {
+        assert(m_value != std::numeric_limits&lt;int64_t&gt;::min());
+        return CScriptNum10(-m_value);
+    }
+
+    inline CScriptNum10&amp; operator=( const int64_t&amp; rhs)
+    {
+        m_value = rhs;
+        return *this;
+    }
+
+    inline CScriptNum10&amp; operator+=( const int64_t&amp; rhs)
+    {
+        assert(rhs == 0 || (rhs &gt; 0 &amp;&amp; m_value &lt;= std::numeric_limits&lt;int64_t&gt;::max() - rhs) ||
+                           (rhs &lt; 0 &amp;&amp; m_value &gt;= std::numeric_limits&lt;int64_t&gt;::min() - rhs));
+        m_value += rhs;
+        return *this;
+    }
+
+    inline CScriptNum10&amp; operator-=( const int64_t&amp; rhs)
+<A NAME="2"></A>    {
+        assert(rhs == 0 || (rhs &gt; 0 &amp;&amp; m_value &gt;= std::numeric_limits&lt;int64_t&gt;::min() + rhs) ||
+                           (rhs &lt; 0 &amp;&amp; m_value &lt;= std::numeric_limits&lt;int64_t&gt;::max() + rhs));</B></FONT>
+<FONT color="#77bfc7"><A HREF="javascript:ZweiFrames('match27-1.html#2',3,'match27-top.html#2',1)"><IMG SRC="forward.gif" ALT="other" BORDER="0" ALIGN="right"></A><B>        m_value -= rhs;
+        return *this;
+    }
+
+    int getint() const
+    {
+        if (m_value &gt; std::numeric_limits&lt;int&gt;::max())
+            return std::numeric_limits&lt;int&gt;::max();
+        else if (m_value &lt; std::numeric_limits&lt;int&gt;::min())
+            return std::numeric_limits&lt;int&gt;::min();
+        return m_value;
+    }
+
+    std::vector&lt;unsigned char&gt; getvch() const
+    {
+        return serialize(m_value);
+    }
+
+    static std::vector&lt;unsigned char&gt; serialize(const int64_t&amp; value)
+    {
+        if(value == 0)
+            return std::vector&lt;unsigned char&gt;();
+
+        std::vector&lt;unsigned char&gt; result;
+        const bool neg = value &lt; 0;
+        uint64_t absvalue = neg ? -value : value;
+
+        while(absvalue)
+        {
+            result.push_back(absvalue &amp; 0xff);
+            absvalue &gt;&gt;= 8;
+        }
+
+//    - If the most significant byte is &gt;= 0x80 and the value is positive, push a
+//    new zero-byte to make the significant byte &lt; 0x80 again.
+
+//    - If the most significant byte is &gt;= 0x80 and the value is negative, push a
+//    new 0x80 byte that will be popped off when converting to an integral.
+
+//    - If the most significant byte is &lt; 0x80 and the value is negative, add
+//    0x80 to it, since it will be subtracted and interpreted as a negative when
+//    converting to an integral.
+
+        if (result.back() &amp; 0x80)
+            result.push_back(neg ? 0x80 : 0);
+        else if (neg)
+            result.back() |= 0x80;
+
+        return result;
+    }
+
+private:
+    static int64_t set_vch(const std::vector&lt;unsigned char&gt;&amp; vch)
+    {
+      if (vch.empty())
+          return 0;
+
+      int64_t result = 0;
+      for (size_t i = 0; i != vch.size(); ++i)
+          result |= static_cast&lt;int64_t&gt;(vch[i]) &lt;&lt; 8*i;
+
+      // If the input vector's most significant byte is 0x80, remove it from
+      // the result's msb and return a negative.
+      if (vch.back() &amp; 0x80)
+          return -((int64_t)(result &amp; ~(0x80ULL &lt;&lt; (8 * (vch.size() - 1)))));
+
+      return result;
+    }
+
+    int64_t m_value;
+};</B></FONT>
+
+
+#endif // BITCOIN_TEST_BIGNUM_H
+</PRE>
+</BODY>
+</HTML>

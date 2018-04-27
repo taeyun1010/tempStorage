@@ -1,0 +1,88 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+<HEAD>
+ <TITLE>bitcoin-atom-master_src_qt_test_uritests.cpp</TITLE>
+<META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <script type="text/javascript">
+  <!--
+   function ZweiFrames(URL1,F1,URL2,F2)
+   {
+    parent.frames[F1].location.href=URL1;
+    parent.frames[F2].location.href=URL2;
+   }
+  //-->
+  </script>
+</HEAD>
+<BODY BGCOLOR="#ffffff">
+<HR>
+<H3><CENTER>bitcoin-atom-master_src_qt_test_uritests.cpp</CENTER></H3><HR>
+<PRE>
+// Copyright (c) 2009-2017 The Bitcoin Core developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
+#include &lt;qt/test/uritests.h&gt;
+
+#include &lt;qt/guiutil.h&gt;
+#include &lt;qt/walletmodel.h&gt;
+<A NAME="0"></A>
+#include &lt;QUrl&gt;
+
+<FONT color="#0000ff"><A HREF="javascript:ZweiFrames('match37-1.html#0',3,'match37-top.html#0',1)"><IMG SRC="forward.gif" ALT="other" BORDER="0" ALIGN="right"></A><B>void URITests::uriTests()
+{
+    SendCoinsRecipient rv;
+    QUrl uri;
+    uri.setUrl(QString(&quot;bitcoin:175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W?req-dontexist=&quot;));
+    QVERIFY(!GUIUtil::parseBitcoinURI(uri, &amp;rv));
+
+    uri.setUrl(QString(&quot;bitcoin:175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W?dontexist=&quot;));
+    QVERIFY(GUIUtil::parseBitcoinURI(uri, &amp;rv));
+    QVERIFY(rv.address == QString(&quot;175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W&quot;));
+    QVERIFY(rv.label == QString());
+    QVERIFY(rv.amount == 0);
+
+    uri.setUrl(QString(&quot;bitcoin:175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W?label=Wikipedia Example Address&quot;));
+    QVERIFY(GUIUtil::parseBitcoinURI(uri, &amp;rv));
+    QVERIFY(rv.address == QString(&quot;175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W&quot;));
+    QVERIFY(rv.label == QString(&quot;Wikipedia Example Address&quot;));
+    QVERIFY(rv.amount == 0);
+
+    uri.setUrl(QString(&quot;bitcoin:175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W?amount=0.001&quot;));
+    QVERIFY(GUIUtil::parseBitcoinURI(uri, &amp;rv));
+    QVERIFY(rv.address == QString(&quot;175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W&quot;));
+    QVERIFY(rv.label == QString());
+    QVERIFY(rv.amount == 100000);
+
+    uri.setUrl(QString(&quot;bitcoin:175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W?amount=1.001&quot;));
+    QVERIFY(GUIUtil::parseBitcoinURI(uri, &amp;rv));
+    QVERIFY(rv.address == QString(&quot;175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W&quot;));
+    QVERIFY(rv.label == QString());
+    QVERIFY(rv.amount == 100100000);
+
+    uri.setUrl(QString(&quot;bitcoin:175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W?amount=100&amp;label=Wikipedia Example&quot;));
+    QVERIFY(GUIUtil::parseBitcoinURI(uri, &amp;rv));
+    QVERIFY(rv.address == QString(&quot;175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W&quot;));
+    QVERIFY(rv.amount == 10000000000LL);
+    QVERIFY(rv.label == QString(&quot;Wikipedia Example&quot;));
+
+    uri.setUrl(QString(&quot;bitcoin:175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W?message=Wikipedia Example Address&quot;));
+    QVERIFY(GUIUtil::parseBitcoinURI(uri, &amp;rv));
+    QVERIFY(rv.address == QString(&quot;175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W&quot;));
+    QVERIFY(rv.label == QString());
+
+    QVERIFY(GUIUtil::parseBitcoinURI(&quot;bitcoin://175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W?message=Wikipedia Example Address&quot;, &amp;rv));
+    QVERIFY(rv.address == QString(&quot;175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W&quot;));
+    QVERIFY(rv.label == QString());
+
+    uri.setUrl(QString(&quot;bitcoin:175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W?req-message=Wikipedia Example Address&quot;));
+    QVERIFY(GUIUtil::parseBitcoinURI(uri, &amp;rv));
+
+    uri.setUrl(QString(&quot;bitcoin:175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W?amount=1,000&amp;label=Wikipedia Example&quot;));
+    QVERIFY(!GUIUtil::parseBitcoinURI(uri, &amp;rv));
+
+    uri.setUrl(QString(&quot;bitcoin:175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W?amount=1,000.0&amp;label=Wikipedia Example&quot;));
+    QVERIFY(!GUIUtil::parseBitcoinURI(uri, &amp;rv));</B></FONT>
+}
+</PRE>
+</BODY>
+</HTML>

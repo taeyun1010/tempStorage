@@ -1,0 +1,47 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+<HEAD>
+ <TITLE>bitcoin-atom-master_src_test_base32_tests.cpp</TITLE>
+<META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <script type="text/javascript">
+  <!--
+   function ZweiFrames(URL1,F1,URL2,F2)
+   {
+    parent.frames[F1].location.href=URL1;
+    parent.frames[F2].location.href=URL2;
+   }
+  //-->
+  </script>
+</HEAD>
+<BODY BGCOLOR="#ffffff" style="margin-left:25">
+<HR>
+<H3><CENTER>bitcoin-atom-master_src_test_base32_tests.cpp</CENTER></H3><HR>
+<PRE>
+// Copyright (c) 2012-2017 The Bitcoin Core developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
+#include &lt;utilstrencodings.h&gt;
+#include &lt;test/test_bitcoin.h&gt;
+
+#include &lt;boost/test/unit_test.hpp&gt;
+
+<A NAME="0"></A>BOOST_FIXTURE_TEST_SUITE(base32_tests, BasicTestingSetup)
+
+BOOST_AUTO_TEST_CASE(base32_testvectors)
+<FONT color="#0000ff"><div style="position:absolute;left:0"><A HREF="javascript:ZweiFrames('match4-0.html#0',2,'match4-top.html#0',1)"><IMG SRC="back.gif" ALT="other" BORDER="0" ALIGN="left"></A></div><B>{
+    static const std::string vstrIn[]  = {&quot;&quot;,&quot;f&quot;,&quot;fo&quot;,&quot;foo&quot;,&quot;foob&quot;,&quot;fooba&quot;,&quot;foobar&quot;};
+    static const std::string vstrOut[] = {&quot;&quot;,&quot;my======&quot;,&quot;mzxq====&quot;,&quot;mzxw6===&quot;,&quot;mzxw6yq=&quot;,&quot;mzxw6ytb&quot;,&quot;mzxw6ytboi======&quot;};
+    for (unsigned int i=0; i&lt;sizeof(vstrIn)/sizeof(vstrIn[0]); i++)
+    {
+        std::string strEnc = EncodeBase32(vstrIn[i]);
+        BOOST_CHECK(strEnc == vstrOut[i]);
+        std::string strDec = DecodeBase32(vstrOut[i]);
+        BOOST_CHECK(strDec == vstrIn[i]);
+    }
+}</B></FONT>
+
+BOOST_AUTO_TEST_SUITE_END()
+</PRE>
+</BODY>
+</HTML>

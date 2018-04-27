@@ -1,0 +1,54 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+<HEAD>
+ <TITLE>bitcoin-atom-master_src_crypto_hmac_sha256.h</TITLE>
+<META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <script type="text/javascript">
+  <!--
+   function ZweiFrames(URL1,F1,URL2,F2)
+   {
+    parent.frames[F1].location.href=URL1;
+    parent.frames[F2].location.href=URL2;
+   }
+  //-->
+  </script>
+</HEAD>
+<BODY BGCOLOR="#ffffff" style="margin-left:25">
+<HR>
+<H3><CENTER>bitcoin-atom-master_src_crypto_hmac_sha256.h</CENTER></H3><HR>
+<PRE>
+// Copyright (c) 2014-2017 The Bitcoin Core developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
+#ifndef BITCOIN_CRYPTO_HMAC_SHA256_H
+#define BITCOIN_CRYPTO_HMAC_SHA256_H
+
+#include &lt;crypto/sha256.h&gt;
+
+#include &lt;stdint.h&gt;
+<A NAME="0"></A>#include &lt;stdlib.h&gt;
+
+/** A hasher class for HMAC-SHA-256. */
+<FONT color="#0000ff"><div style="position:absolute;left:0"><A HREF="javascript:ZweiFrames('match3-0.html#0',2,'match3-top.html#0',1)"><IMG SRC="back.gif" ALT="other" BORDER="0" ALIGN="left"></A></div><B>class CHMAC_SHA256
+{
+private:
+    CSHA256 outer;
+    CSHA256 inner;
+
+public:
+    static const size_t OUTPUT_SIZE = 32;
+
+    CHMAC_SHA256(const unsigned char* key, size_t keylen);
+    CHMAC_SHA256&amp; Write(const unsigned char* data, size_t len)
+    {
+        inner.Write(data, len);
+        return *this;
+    }
+    void Finalize(unsigned char hash[OUTPUT_SIZE]);
+};</B></FONT>
+
+#endif // BITCOIN_CRYPTO_HMAC_SHA256_H
+</PRE>
+</BODY>
+</HTML>

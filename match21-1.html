@@ -1,0 +1,80 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+<HEAD>
+ <TITLE>bitcoin-atom-master_src_support_allocators_secure.h</TITLE>
+<META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <script type="text/javascript">
+  <!--
+   function ZweiFrames(URL1,F1,URL2,F2)
+   {
+    parent.frames[F1].location.href=URL1;
+    parent.frames[F2].location.href=URL2;
+   }
+  //-->
+  </script>
+</HEAD>
+<BODY BGCOLOR="#ffffff" style="margin-left:25">
+<HR>
+<H3><CENTER>bitcoin-atom-master_src_support_allocators_secure.h</CENTER></H3><HR>
+<PRE>
+// Copyright (c) 2009-2010 Satoshi Nakamoto
+// Copyright (c) 2009-2017 The Bitcoin Core developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
+#ifndef BITCOIN_SUPPORT_ALLOCATORS_SECURE_H
+#define BITCOIN_SUPPORT_ALLOCATORS_SECURE_H
+
+#include &lt;support/lockedpool.h&gt;
+#include &lt;support/cleanse.h&gt;
+
+#include &lt;string&gt;
+
+//
+<A NAME="0"></A>// Allocator that locks its contents from being paged
+// out of memory and clears its contents before deletion.
+//
+<FONT color="#0000ff"><div style="position:absolute;left:0"><A HREF="javascript:ZweiFrames('match21-0.html#0',2,'match21-top.html#0',1)"><IMG SRC="back.gif" ALT="other" BORDER="0" ALIGN="left"></A></div><B>template &lt;typename T&gt;
+struct secure_allocator : public std::allocator&lt;T&gt; {
+    // MSVC8 default copy constructor is broken
+    typedef std::allocator&lt;T&gt; base;
+    typedef typename base::size_type size_type;
+    typedef typename base::difference_type difference_type;
+    typedef typename base::pointer pointer;
+    typedef typename base::const_pointer const_pointer;
+    typedef typename base::reference reference;
+    typedef typename base::const_reference const_reference;
+    typedef typename base::value_type value_type;
+    secure_allocator() noexcept {}
+    secure_allocator(const secure_allocator&amp; a) noexcept : base(a) {}
+    template &lt;typename U&gt;
+    secure_allocator(const secure_allocator&lt;U&gt;&amp; a) noexcept : base(a)
+    {
+    }
+    ~secure_allocator() noexcept {}
+    template &lt;typename _Other&gt;
+    struct rebind {
+        typedef secure_allocator&lt;_Other&gt; other;
+    };</B></FONT>
+
+    T* allocate(std::size_t n, const void* hint = 0)
+    {
+        return static_cast&lt;T*&gt;(LockedPoolManager::Instance().alloc(sizeof(T) * n));
+    }
+
+    void deallocate(T* p, std::size_t n)
+    {
+        if (p != nullptr) {
+            memory_cleanse(p, sizeof(T) * n);
+        }
+        LockedPoolManager::Instance().free(p);
+    }
+};
+
+// This is exactly like std::string, but with a custom allocator.
+typedef std::basic_string&lt;char, std::char_traits&lt;char&gt;, secure_allocator&lt;char&gt; &gt; SecureString;
+
+#endif // BITCOIN_SUPPORT_ALLOCATORS_SECURE_H
+</PRE>
+</BODY>
+</HTML>

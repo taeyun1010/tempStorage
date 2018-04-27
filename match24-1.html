@@ -1,0 +1,207 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+<HEAD>
+ <TITLE>bitcoin-atom-master_src_qt_bantablemodel.cpp</TITLE>
+<META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <script type="text/javascript">
+  <!--
+   function ZweiFrames(URL1,F1,URL2,F2)
+   {
+    parent.frames[F1].location.href=URL1;
+    parent.frames[F2].location.href=URL2;
+   }
+  //-->
+  </script>
+</HEAD>
+<BODY BGCOLOR="#ffffff" style="margin-left:25">
+<HR>
+<H3><CENTER>bitcoin-atom-master_src_qt_bantablemodel.cpp</CENTER></H3><HR>
+<PRE>
+// Copyright (c) 2011-2017 The Bitcoin Core developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
+#include &lt;qt/bantablemodel.h&gt;
+
+#include &lt;qt/clientmodel.h&gt;
+#include &lt;qt/guiconstants.h&gt;
+#include &lt;qt/guiutil.h&gt;
+
+#include &lt;sync.h&gt;
+#include &lt;utiltime.h&gt;
+
+<A NAME="0"></A>#include &lt;QDebug&gt;
+#include &lt;QList&gt;
+
+<FONT color="#0000ff"><div style="position:absolute;left:0"><A HREF="javascript:ZweiFrames('match24-0.html#0',2,'match24-top.html#0',1)"><IMG SRC="back.gif" ALT="other" BORDER="0" ALIGN="left"></A></div><B>bool BannedNodeLessThan::operator()(const CCombinedBan&amp; left, const CCombinedBan&amp; right) const
+{
+    const CCombinedBan* pLeft = &amp;left;
+    const CCombinedBan* pRight = &amp;right;
+
+    if (order == Qt::DescendingOrder)
+        std::swap(pLeft, pRight);
+
+    switch(column)
+    {
+    case BanTableModel::Address:
+        return pLeft-&gt;subnet.ToString().compare(pRight-&gt;subnet.ToString()) &lt; 0;
+    case BanTableModel::Bantime:
+        return pLeft-&gt;banEntry.nBanUntil &lt; pRight-&gt;banEntry.nBanUntil;</B></FONT>
+    }
+
+    return false;
+}
+
+// private implementation
+class BanTablePriv
+{
+public:
+    /** Local cache of peer information */
+    QList&lt;CCombinedBan&gt; cachedBanlist;
+    /** Column to sort nodes by */
+    int sortColumn;
+    /** Order (ascending or descending) to sort nodes by */
+    Qt::SortOrder sortOrder;
+
+    /** Pull a full list of banned nodes from CNode into our cache */
+    void refreshBanlist()
+    {
+        banmap_t banMap;
+        if(g_connman)
+            g_connman-&gt;GetBanned(banMap);
+
+        cachedBanlist.clear();
+#if QT_VERSION &gt;= 0x040700
+        cachedBanlist.reserve(banMap.size());
+#endif
+        for (const auto&amp; entry : banMap)
+        {
+            CCombinedBan banEntry;
+            banEntry.subnet = entry.first;
+            banEntry.banEntry = entry.second;
+            cachedBanlist.append(banEntry);
+        }
+
+<A NAME="1"></A>        if (sortColumn &gt;= 0)
+            // sort cachedBanlist (use stable sort to prevent rows jumping around unnecessarily)
+            qStableSort(cachedBanlist.begin(), cachedBanlist.end(), BannedNodeLessThan(sortColumn, sortOrder));
+<FONT color="#f63526"><div style="position:absolute;left:0"><A HREF="javascript:ZweiFrames('match24-0.html#1',2,'match24-top.html#1',1)"><IMG SRC="back.gif" ALT="other" BORDER="0" ALIGN="left"></A></div><B>    }
+
+    int size() const
+    {
+        return cachedBanlist.size();
+    }
+
+    CCombinedBan *index(int idx)
+    {
+        if (idx &gt;= 0 &amp;&amp; idx &lt; cachedBanlist.size())
+            return &amp;cachedBanlist[idx];
+
+        return 0;
+    }
+};
+
+BanTableModel::BanTableModel(ClientModel *parent) :
+    QAbstractTableModel(parent),
+    clientModel(parent)
+{
+    columns &lt;&lt; tr(&quot;IP/Netmask&quot;) &lt;&lt; tr(&quot;Banned Until&quot;);
+    priv.reset(new BanTablePriv());
+    // default to unsorted
+    priv-&gt;sortColumn = -1;</B></FONT>
+
+    // load initial data
+<A NAME="2"></A>    refresh();
+}
+
+<FONT color="#77bfc7"><div style="position:absolute;left:0"><A HREF="javascript:ZweiFrames('match24-0.html#2',2,'match24-top.html#2',1)"><IMG SRC="back.gif" ALT="other" BORDER="0" ALIGN="left"></A></div><B>BanTableModel::~BanTableModel()
+{
+    // Intentionally left empty
+}
+
+int BanTableModel::rowCount(const QModelIndex &amp;parent) const
+{
+    Q_UNUSED(parent);
+    return priv-&gt;size();
+}
+
+int BanTableModel::columnCount(const QModelIndex &amp;parent) const
+{
+    Q_UNUSED(parent);
+    return columns.length();
+}
+
+QVariant BanTableModel::data(const QModelIndex &amp;index, int role) const
+{
+    if(!index.isValid())
+        return QVariant();
+
+    CCombinedBan *rec = static_cast&lt;CCombinedBan*&gt;(index.internalPointer());
+
+    if (role == Qt::DisplayRole) {
+        switch(index.column())
+        {
+        case Address:
+            return QString::fromStdString(rec-&gt;subnet.ToString());</B></FONT>
+        case Bantime:
+<A NAME="3"></A>            QDateTime date = QDateTime::fromMSecsSinceEpoch(0);
+            date = date.addSecs(rec-&gt;banEntry.nBanUntil);
+            return date.toString(Qt::SystemLocaleLongDate);
+<FONT color="#6cc417"><div style="position:absolute;left:0"><A HREF="javascript:ZweiFrames('match24-0.html#3',2,'match24-top.html#3',1)"><IMG SRC="back.gif" ALT="other" BORDER="0" ALIGN="left"></A></div><B>        }
+    }
+
+    return QVariant();
+}
+
+QVariant BanTableModel::headerData(int section, Qt::Orientation orientation, int role) const
+{
+    if(orientation == Qt::Horizontal)
+    {
+        if(role == Qt::DisplayRole &amp;&amp; section &lt; columns.size())
+        {
+            return columns[section];
+        }
+    }
+    return QVariant();
+}
+
+Qt::ItemFlags BanTableModel::flags(const QModelIndex &amp;index) const
+{
+    if(!index.isValid())
+        return 0;
+
+    Qt::ItemFlags retval = Qt::ItemIsSelectable | Qt::ItemIsEnabled;
+    return retval;
+}
+
+QModelIndex BanTableModel::index(int row, int column, const QModelIndex &amp;parent) const
+{
+    Q_UNUSED(parent);
+    CCombinedBan *data = priv-&gt;index(row);
+
+    if (data)
+        return createIndex(row, column, data);
+    return QModelIndex();
+}</B></FONT>
+
+void BanTableModel::refresh()
+{
+    Q_EMIT layoutAboutToBeChanged();
+    priv-&gt;refreshBanlist();
+    Q_EMIT layoutChanged();
+}
+
+void BanTableModel::sort(int column, Qt::SortOrder order)
+{
+    priv-&gt;sortColumn = column;
+    priv-&gt;sortOrder = order;
+    refresh();
+}
+
+bool BanTableModel::shouldShow()
+{
+    return priv-&gt;size() &gt; 0;
+}
+</PRE>
+</BODY>
+</HTML>

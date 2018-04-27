@@ -1,0 +1,199 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+<HEAD>
+ <TITLE>bitcoin-atom-master_src_leveldb_port_port_win.h</TITLE>
+<META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <script type="text/javascript">
+  <!--
+   function ZweiFrames(URL1,F1,URL2,F2)
+   {
+    parent.frames[F1].location.href=URL1;
+    parent.frames[F2].location.href=URL2;
+   }
+  //-->
+  </script>
+</HEAD>
+<BODY BGCOLOR="#ffffff">
+<HR>
+<H3><CENTER>bitcoin-atom-master_src_leveldb_port_port_win.h</CENTER></H3><HR>
+<PRE>
+// LevelDB Copyright (c) 2011 The LevelDB Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file. See the AUTHORS file for names of contributors.
+//
+// See port_example.h for documentation for the following types/functions.
+
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+// 
+//  * Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
+//  * Redistributions in binary form must reproduce the above copyright
+//    notice, this list of conditions and the following disclaimer in the
+//    documentation and/or other materials provided with the distribution.
+//  * Neither the name of the University of California, Berkeley nor the
+//    names of its contributors may be used to endorse or promote products
+//    derived from this software without specific prior written permission.
+// 
+// THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND ANY
+// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL THE REGENTS AND CONTRIBUTORS BE LIABLE FOR ANY
+// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+
+#ifndef STORAGE_LEVELDB_PORT_PORT_WIN_H_
+#define STORAGE_LEVELDB_PORT_PORT_WIN_H_
+
+#ifdef _MSC_VER
+#define snprintf _snprintf
+#define close _close
+#define fread_unlocked _fread_nolock
+#endif
+
+#include &lt;string&gt;
+#include &lt;stdint.h&gt;
+#ifdef SNAPPY
+<A NAME="0"></A>#include &lt;snappy.h&gt;
+#endif
+
+<FONT color="#0000ff"><A HREF="javascript:ZweiFrames('match20-1.html#0',3,'match20-top.html#0',1)"><IMG SRC="forward.gif" ALT="other" BORDER="0" ALIGN="right"></A><B>namespace leveldb {
+namespace port {
+
+// Windows is little endian (for now :p)
+static const bool kLittleEndian = true;
+
+class CondVar;
+
+class Mutex {
+ public:
+  Mutex();
+  ~Mutex();
+
+  void Lock();
+  void Unlock();
+  void AssertHeld();</B></FONT>
+
+ private:
+  friend class CondVar;
+  // critical sections are more efficient than mutexes
+  // but they are not recursive and can only be used to synchronize threads within the same process
+  // we use opaque void * to avoid including windows.h in port_win.h
+<A NAME="1"></A>  void * cs_;
+
+  // No copying
+<FONT color="#f63526"><A HREF="javascript:ZweiFrames('match20-1.html#1',3,'match20-top.html#1',1)"><IMG SRC="forward.gif" ALT="other" BORDER="0" ALIGN="right"></A><B>  Mutex(const Mutex&amp;);
+  void operator=(const Mutex&amp;);
+};
+
+// the Win32 API offers a dependable condition variable mechanism, but only starting with
+// Windows 2008 and Vista
+// no matter what we will implement our own condition variable with a semaphore
+// implementation as described in a paper written by Andrew D. Birrell in 2003
+class CondVar {
+ public:
+  explicit CondVar(Mutex* mu);
+  ~CondVar();
+  void Wait();
+  void Signal();
+  void SignalAll();
+ private:</B></FONT>
+  Mutex* mu_;
+  
+  Mutex wait_mtx_;
+  long waiting_;
+  
+  void * sem1_;
+  void * sem2_;
+  
+  
+};
+
+class OnceType {
+public:
+//    OnceType() : init_(false) {}
+    OnceType(const OnceType &amp;once) : init_(once.init_) {}
+    OnceType(bool f) : init_(f) {}
+    void InitOnce(void (*initializer)()) {
+        mutex_.Lock();
+        if (!init_) {
+            init_ = true;
+            initializer();
+        }
+        mutex_.Unlock();
+    }
+
+private:
+    bool init_;
+    Mutex mutex_;
+};
+
+#define LEVELDB_ONCE_INIT false
+extern void InitOnce(port::OnceType*, void (*initializer)());
+
+// Storage for a lock-free pointer
+class AtomicPointer {
+ private:
+  void * rep_;
+ public:
+  AtomicPointer() : rep_(NULL) { }
+  explicit AtomicPointer(void* v); 
+  void* Acquire_Load() const;
+
+  void Release_Store(void* v);
+
+  void* NoBarrier_Load() const;
+
+<A NAME="2"></A>  void NoBarrier_Store(void* v);
+};
+
+<FONT color="#77bfc7"><A HREF="javascript:ZweiFrames('match20-1.html#2',3,'match20-top.html#2',1)"><IMG SRC="forward.gif" ALT="other" BORDER="0" ALIGN="right"></A><B>inline bool Snappy_Compress(const char* input, size_t length,
+                            ::std::string* output) {
+#ifdef SNAPPY
+  output-&gt;resize(snappy::MaxCompressedLength(length));
+  size_t outlen;
+  snappy::RawCompress(input, length, &amp;(*output)[0], &amp;outlen);
+  output-&gt;resize(outlen);
+  return true;
+#endif
+
+  return false;
+}
+
+inline bool Snappy_GetUncompressedLength(const char* input, size_t length,
+                                         size_t* result) {
+#ifdef SNAPPY
+  return snappy::GetUncompressedLength(input, length, result);
+#else
+  return false;
+#endif
+}
+
+inline bool Snappy_Uncompress(const char* input, size_t length,
+                              char* output) {
+#ifdef SNAPPY
+  return snappy::RawUncompress(input, length, output);
+#else
+  return false;
+#endif
+}
+
+inline bool GetHeapProfile(void (*func)(void*, const char*, int), void* arg) {
+  return false;
+}
+
+bool HasAcceleratedCRC32C();
+uint32_t AcceleratedCRC32C(uint32_t crc, const char* buf, size_t size);
+
+}
+}</B></FONT>
+
+#endif  // STORAGE_LEVELDB_PORT_PORT_WIN_H_
+</PRE>
+</BODY>
+</HTML>

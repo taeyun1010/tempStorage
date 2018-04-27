@@ -1,0 +1,86 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+<HEAD>
+ <TITLE>bitcoin-atom-master_src_qt_guiconstants.h</TITLE>
+<META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <script type="text/javascript">
+  <!--
+   function ZweiFrames(URL1,F1,URL2,F2)
+   {
+    parent.frames[F1].location.href=URL1;
+    parent.frames[F2].location.href=URL2;
+   }
+  //-->
+  </script>
+</HEAD>
+<BODY BGCOLOR="#ffffff">
+<HR>
+<H3><CENTER>bitcoin-atom-master_src_qt_guiconstants.h</CENTER></H3><HR>
+<PRE>
+// Copyright (c) 2011-2016 The Bitcoin Core developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
+#ifndef BITCOIN_QT_GUICONSTANTS_H
+<A NAME="0"></A>#define BITCOIN_QT_GUICONSTANTS_H
+
+/* Milliseconds between model updates */
+<FONT color="#0000ff"><A HREF="javascript:ZweiFrames('match29-1.html#0',3,'match29-top.html#0',1)"><IMG SRC="forward.gif" ALT="other" BORDER="0" ALIGN="right"></A><B>static const int MODEL_UPDATE_DELAY = 250;
+
+/* AskPassphraseDialog -- Maximum passphrase length */
+static const int MAX_PASSPHRASE_SIZE = 1024;
+
+/* BitcoinGUI -- Size of icons in status bar */
+static const int STATUSBAR_ICONSIZE = 16;</B></FONT>
+
+static const bool DEFAULT_SPLASHSCREEN = true;
+
+/* Invalid field background style */
+#define STYLE_VALID &quot;background-color: rgba(170, 170, 186, 33); border-top: 2px inset rgba(0, 0, 0, 33); border-left: 2px inset rgba(0, 0, 0, 33); border-bottom: 2px solid rgba(170, 170, 186, 33); border-right: 2px solid rgba(170, 170, 186, 33); border-radius: 4px;&quot;
+#define STYLE_INVALID &quot;background:#FF8080&quot;
+
+/* Transaction list -- unconfirmed transaction */
+#define COLOR_UNCONFIRMED QColor(128, 128, 128)
+/* Transaction list -- negative amount */
+#define COLOR_NEGATIVE QColor(255, 0, 0)
+/* Transaction list -- bare address (without label) */
+#define COLOR_BAREADDRESS QColor(140, 140, 140)
+/* Transaction list -- TX status decoration - open until date */
+#define COLOR_TX_STATUS_OPENUNTILDATE QColor(64, 64, 255)
+/* Transaction list -- TX status decoration - offline */
+#define COLOR_TX_STATUS_OFFLINE QColor(192, 192, 192)
+/* Transaction list -- TX status decoration - danger, tx needs attention */
+#define COLOR_TX_STATUS_DANGER QColor(200, 100, 100)
+/* Transaction list -- TX status decoration - default color */
+#define COLOR_BLACK QColor(0, 0, 0)
+
+/* Tooltips longer than this (in characters) are converted into rich text,
+   so that they can be word-wrapped.
+ */
+static const int TOOLTIP_WRAP_THRESHOLD = 80;
+
+/* Maximum allowed URI length */
+static const int MAX_URI_LENGTH = 255;
+
+/* QRCodeDialog -- size of exported QR Code image */
+#define QR_IMAGE_SIZE 300
+
+/* Number of frames in spinner animation */
+#define SPINNER_FRAMES 36
+
+&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD
+#define QAPP_ORG_NAME &quot;Bitcoin-Atom&quot;
+#define QAPP_ORG_DOMAIN &quot;bitcoinatom.io&quot;
+#define QAPP_APP_NAME_DEFAULT &quot;Bitcoin-Atom-Qt&quot;
+#define QAPP_APP_NAME_TESTNET &quot;Bitcoin-Atom-Qt-testnet&quot;
+=======
+#define QAPP_ORG_NAME &quot;Bitcoin&quot;
+#define QAPP_ORG_DOMAIN &quot;bitcoin.org&quot;
+#define QAPP_APP_NAME_DEFAULT &quot;Atom-Qt&quot;
+#define QAPP_APP_NAME_TESTNET &quot;Atom-Qt-testnet&quot;
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; 307f64cab... fix - replace bitcoin-qt to atom-qt
+
+#endif // BITCOIN_QT_GUICONSTANTS_H
+</PRE>
+</BODY>
+</HTML>

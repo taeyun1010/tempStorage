@@ -1,0 +1,971 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+<HEAD>
+ <TITLE>bitcoin-atom-master_src_secp256k1_src_scalar_4x64_impl.h</TITLE>
+<META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <script type="text/javascript">
+  <!--
+   function ZweiFrames(URL1,F1,URL2,F2)
+   {
+    parent.frames[F1].location.href=URL1;
+    parent.frames[F2].location.href=URL2;
+   }
+  //-->
+  </script>
+</HEAD>
+<BODY BGCOLOR="#ffffff" style="margin-left:25">
+<HR>
+<H3><CENTER>bitcoin-atom-master_src_secp256k1_src_scalar_4x64_impl.h</CENTER></H3><HR>
+<PRE>
+/**********************************************************************
+ * Copyright (c) 2013, 2014 Pieter Wuille                             *
+ * Distributed under the MIT software license, see the accompanying   *
+ * file COPYING or http://www.opensource.org/licenses/mit-license.php.*
+ **********************************************************************/
+
+#ifndef SECP256K1_SCALAR_REPR_IMPL_H
+#define SECP256K1_SCALAR_REPR_IMPL_H
+
+/* Limbs of the secp256k1 order. */
+#define SECP256K1_N_0 ((uint64_t)0xBFD25E8CD0364141ULL)
+#define SECP256K1_N_1 ((uint64_t)0xBAAEDCE6AF48A03BULL)
+#define SECP256K1_N_2 ((uint64_t)0xFFFFFFFFFFFFFFFEULL)
+#define SECP256K1_N_3 ((uint64_t)0xFFFFFFFFFFFFFFFFULL)
+
+/* Limbs of 2^256 minus the secp256k1 order. */
+#define SECP256K1_N_C_0 (~SECP256K1_N_0 + 1)
+#define SECP256K1_N_C_1 (~SECP256K1_N_1)
+#define SECP256K1_N_C_2 (1)
+
+/* Limbs of half the secp256k1 order. */
+#define SECP256K1_N_H_0 ((uint64_t)0xDFE92F46681B20A0ULL)
+#define SECP256K1_N_H_1 ((uint64_t)0x5D576E7357A4501DULL)
+#define SECP256K1_N_H_2 ((uint64_t)0xFFFFFFFFFFFFFFFFULL)
+#define SECP256K1_N_H_3 ((uint64_t)0x7FFFFFFFFFFFFFFFULL)
+
+SECP256K1_INLINE static void secp256k1_scalar_clear(secp256k1_scalar *r) {
+    r-&gt;d[0] = 0;
+    r-&gt;d[1] = 0;
+    r-&gt;d[2] = 0;
+    r-&gt;d[3] = 0;
+<A NAME="0"></A>}
+
+SECP256K1_INLINE static void secp256k1_scalar_set_int(secp256k1_scalar *r, unsigned int v) {
+<FONT color="#0000ff"><div style="position:absolute;left:0"><A HREF="javascript:ZweiFrames('match18-0.html#0',2,'match18-top.html#0',1)"><IMG SRC="back.gif" ALT="other" BORDER="0" ALIGN="left"></A></div><B>    r-&gt;d[0] = v;
+    r-&gt;d[1] = 0;
+    r-&gt;d[2] = 0;
+    r-&gt;d[3] = 0;
+}
+
+SECP256K1_INLINE static unsigned int secp256k1_scalar_get_bits(const secp256k1_scalar *a, unsigned int offset, unsigned int count) {
+    VERIFY_CHECK((offset + count - 1) &gt;&gt; 6 == offset &gt;&gt; 6);
+    return (a-&gt;d[offset &gt;&gt; 6] &gt;&gt; (offset &amp; 0x3F)) &amp; ((((uint64_t)1) &lt;&lt; count) - 1);
+}
+
+SECP256K1_INLINE static unsigned int secp256k1_scalar_get_bits_var(const secp256k1_scalar *a, unsigned int offset, unsigned int count) {
+    VERIFY_CHECK(count &lt; 32);
+    VERIFY_CHECK(offset + count &lt;= 256);
+    if ((offset + count - 1) &gt;&gt; 6 == offset &gt;&gt; 6) {
+        return secp256k1_scalar_get_bits(a, offset, count);
+    } else {
+        VERIFY_CHECK((offset &gt;&gt; 6) + 1 &lt; 4);
+        return ((a-&gt;d[offset &gt;&gt; 6] &gt;&gt; (offset &amp; 0x3F)) | (a-&gt;d[(offset &gt;&gt; 6) + 1] &lt;&lt; (64 - (offset &amp; 0x3F)))) &amp; ((((uint64_t)1) &lt;&lt; count) - 1);
+    }
+}
+
+SECP256K1_INLINE static int secp256k1_scalar_check_overflow(const secp256k1_scalar *a) {
+    int yes = 0;
+    int no = 0;
+    no |= (a-&gt;d[3] &lt; SECP256K1_N_3); /* No need for a &gt; check. */
+    no |= (a-&gt;d[2] &lt; SECP256K1_N_2);
+    yes |= (a-&gt;d[2] &gt; SECP256K1_N_2) &amp; ~no;
+    no |= (a-&gt;d[1] &lt; SECP256K1_N_1);
+    yes |= (a-&gt;d[1] &gt; SECP256K1_N_1) &amp; ~no;
+    yes |= (a-&gt;d[0] &gt;= SECP256K1_N_0) &amp; ~no;</B></FONT>
+    return yes;
+}
+
+<A NAME="1"></A>SECP256K1_INLINE static int secp256k1_scalar_reduce(secp256k1_scalar *r, unsigned int overflow) {
+    uint128_t t;
+    VERIFY_CHECK(overflow &lt;= 1);
+<FONT color="#f63526"><div style="position:absolute;left:0"><A HREF="javascript:ZweiFrames('match18-0.html#1',2,'match18-top.html#1',1)"><IMG SRC="back.gif" ALT="other" BORDER="0" ALIGN="left"></A></div><B>    t = (uint128_t)r-&gt;d[0] + overflow * SECP256K1_N_C_0;
+    r-&gt;d[0] = t &amp; 0xFFFFFFFFFFFFFFFFULL; t &gt;&gt;= 64;
+    t += (uint128_t)r-&gt;d[1] + overflow * SECP256K1_N_C_1;
+    r-&gt;d[1] = t &amp; 0xFFFFFFFFFFFFFFFFULL; t &gt;&gt;= 64;
+    t += (uint128_t)r-&gt;d[2] + overflow * SECP256K1_N_C_2;
+    r-&gt;d[2] = t &amp; 0xFFFFFFFFFFFFFFFFULL; t &gt;&gt;= 64;
+    t += (uint64_t)r-&gt;d[3];
+    r-&gt;d[3] = t &amp; 0xFFFFFFFFFFFFFFFFULL;
+    return overflow;
+}
+<A NAME="2"></A>
+static int secp256k1_scalar_add(secp256k1_scalar *r, const secp256k1_scalar *a, const secp256k1_scalar *b) {
+    int overflow;</B></FONT>
+<FONT color="#77bfc7"><div style="position:absolute;left:0"><A HREF="javascript:ZweiFrames('match18-0.html#2',2,'match18-top.html#2',1)"><IMG SRC="back.gif" ALT="other" BORDER="0" ALIGN="left"></A></div><B>    uint128_t t = (uint128_t)a-&gt;d[0] + b-&gt;d[0];
+    r-&gt;d[0] = t &amp; 0xFFFFFFFFFFFFFFFFULL; t &gt;&gt;= 64;
+    t += (uint128_t)a-&gt;d[1] + b-&gt;d[1];
+    r-&gt;d[1] = t &amp; 0xFFFFFFFFFFFFFFFFULL; t &gt;&gt;= 64;
+    t += (uint128_t)a-&gt;d[2] + b-&gt;d[2];
+    r-&gt;d[2] = t &amp; 0xFFFFFFFFFFFFFFFFULL; t &gt;&gt;= 64;
+    t += (uint128_t)a-&gt;d[3] + b-&gt;d[3];
+    r-&gt;d[3] = t &amp; 0xFFFFFFFFFFFFFFFFULL; t &gt;&gt;= 64;
+    overflow = t + secp256k1_scalar_check_overflow(r);
+    VERIFY_CHECK(overflow == 0 || overflow == 1);
+    secp256k1_scalar_reduce(r, overflow);
+    return overflow;
+}
+
+static void secp256k1_scalar_cadd_bit(secp256k1_scalar *r, unsigned int bit, int flag) {
+    uint128_t t;
+    VERIFY_CHECK(bit &lt; 256);
+    bit += ((uint32_t) flag - 1) &amp; 0x100;  /* forcing (bit &gt;&gt; 6) &gt; 3 makes this a noop */
+    t = (uint128_t)r-&gt;d[0] + (((uint64_t)((bit &gt;&gt; 6) == 0)) &lt;&lt; (bit &amp; 0x3F));
+    r-&gt;d[0] = t &amp; 0xFFFFFFFFFFFFFFFFULL; t &gt;&gt;= 64;
+    t += (uint128_t)r-&gt;d[1] + (((uint64_t)((bit &gt;&gt; 6) == 1)) &lt;&lt; (bit &amp; 0x3F));
+    r-&gt;d[1] = t &amp; 0xFFFFFFFFFFFFFFFFULL; t &gt;&gt;= 64;
+    t += (uint128_t)r-&gt;d[2] + (((uint64_t)((bit &gt;&gt; 6) == 2)) &lt;&lt; (bit &amp; 0x3F));
+    r-&gt;d[2] = t &amp; 0xFFFFFFFFFFFFFFFFULL; t &gt;&gt;= 64;
+    t += (uint128_t)r-&gt;d[3] + (((uint64_t)((bit &gt;&gt; 6) == 3)) &lt;&lt; (bit &amp; 0x3F));
+    r-&gt;d[3] = t &amp; 0xFFFFFFFFFFFFFFFFULL;</B></FONT>
+#ifdef VERIFY
+    VERIFY_CHECK((t &gt;&gt; 64) == 0);
+    VERIFY_CHECK(secp256k1_scalar_check_overflow(r) == 0);
+#endif
+}
+<A NAME="3"></A>
+static void secp256k1_scalar_set_b32(secp256k1_scalar *r, const unsigned char *b32, int *overflow) {
+    int over;
+<FONT color="#6cc417"><div style="position:absolute;left:0"><A HREF="javascript:ZweiFrames('match18-0.html#3',2,'match18-top.html#3',1)"><IMG SRC="back.gif" ALT="other" BORDER="0" ALIGN="left"></A></div><B>    r-&gt;d[0] = (uint64_t)b32[31] | (uint64_t)b32[30] &lt;&lt; 8 | (uint64_t)b32[29] &lt;&lt; 16 | (uint64_t)b32[28] &lt;&lt; 24 | (uint64_t)b32[27] &lt;&lt; 32 | (uint64_t)b32[26] &lt;&lt; 40 | (uint64_t)b32[25] &lt;&lt; 48 | (uint64_t)b32[24] &lt;&lt; 56;
+    r-&gt;d[1] = (uint64_t)b32[23] | (uint64_t)b32[22] &lt;&lt; 8 | (uint64_t)b32[21] &lt;&lt; 16 | (uint64_t)b32[20] &lt;&lt; 24 | (uint64_t)b32[19] &lt;&lt; 32 | (uint64_t)b32[18] &lt;&lt; 40 | (uint64_t)b32[17] &lt;&lt; 48 | (uint64_t)b32[16] &lt;&lt; 56;
+    r-&gt;d[2] = (uint64_t)b32[15] | (uint64_t)b32[14] &lt;&lt; 8 | (uint64_t)b32[13] &lt;&lt; 16 | (uint64_t)b32[12] &lt;&lt; 24 | (uint64_t)b32[11] &lt;&lt; 32 | (uint64_t)b32[10] &lt;&lt; 40 | (uint64_t)b32[9] &lt;&lt; 48 | (uint64_t)b32[8] &lt;&lt; 56;
+    r-&gt;d[3] = (uint64_t)b32[7] | (uint64_t)b32[6] &lt;&lt; 8 | (uint64_t)b32[5] &lt;&lt; 16 | (uint64_t)b32[4] &lt;&lt; 24 | (uint64_t)b32[3] &lt;&lt; 32 | (uint64_t)b32[2] &lt;&lt; 40 | (uint64_t)b32[1] &lt;&lt; 48 | (uint64_t)b32[0] &lt;&lt; 56;
+    over = secp256k1_scalar_reduce(r, secp256k1_scalar_check_overflow(r));
+    if (overflow) {
+        *overflow = over;
+    }
+}
+
+static void secp256k1_scalar_get_b32(unsigned char *bin, const secp256k1_scalar* a) {
+    bin[0] = a-&gt;d[3] &gt;&gt; 56; bin[1] = a-&gt;d[3] &gt;&gt; 48; bin[2] = a-&gt;d[3] &gt;&gt; 40; bin[3] = a-&gt;d[3] &gt;&gt; 32; bin[4] = a-&gt;d[3] &gt;&gt; 24; bin[5] = a-&gt;d[3] &gt;&gt; 16; bin[6] = a-&gt;d[3] &gt;&gt; 8; bin[7] = a-&gt;d[3];
+    bin[8] = a-&gt;d[2] &gt;&gt; 56; bin[9] = a-&gt;d[2] &gt;&gt; 48; bin[10] = a-&gt;d[2] &gt;&gt; 40; bin[11] = a-&gt;d[2] &gt;&gt; 32; bin[12] = a-&gt;d[2] &gt;&gt; 24; bin[13] = a-&gt;d[2] &gt;&gt; 16; bin[14] = a-&gt;d[2] &gt;&gt; 8; bin[15] = a-&gt;d[2];
+    bin[16] = a-&gt;d[1] &gt;&gt; 56; bin[17] = a-&gt;d[1] &gt;&gt; 48; bin[18] = a-&gt;d[1] &gt;&gt; 40; bin[19] = a-&gt;d[1] &gt;&gt; 32; bin[20] = a-&gt;d[1] &gt;&gt; 24; bin[21] = a-&gt;d[1] &gt;&gt; 16; bin[22] = a-&gt;d[1] &gt;&gt; 8; bin[23] = a-&gt;d[1];
+    bin[24] = a-&gt;d[0] &gt;&gt; 56; bin[25] = a-&gt;d[0] &gt;&gt; 48; bin[26] = a-&gt;d[0] &gt;&gt; 40; bin[27] = a-&gt;d[0] &gt;&gt; 32; bin[28] = a-&gt;d[0] &gt;&gt; 24; bin[29] = a-&gt;d[0] &gt;&gt; 16; bin[30] = a-&gt;d[0] &gt;&gt; 8; bin[31] = a-&gt;d[0];
+}
+
+SECP256K1_INLINE static int secp256k1_scalar_is_zero(const secp256k1_scalar *a) {
+    return (a-&gt;d[0] | a-&gt;d[1] | a-&gt;d[2] | a-&gt;d[3]) == 0;
+}
+
+static void secp256k1_scalar_negate(secp256k1_scalar *r, const secp256k1_scalar *a) {
+    uint64_t nonzero = 0xFFFFFFFFFFFFFFFFULL * (secp256k1_scalar_is_zero(a) == 0);
+    uint128_t t = (uint128_t)(~a-&gt;d[0]) + SECP256K1_N_0 + 1;
+    r-&gt;d[0] = t &amp; nonzero; t &gt;&gt;= 64;
+    t += (uint128_t)(~a-&gt;d[1]) + SECP256K1_N_1;
+    r-&gt;d[1] = t &amp; nonzero; t &gt;&gt;= 64;
+    t += (uint128_t)(~a-&gt;d[2]) + SECP256K1_N_2;
+<A NAME="4"></A>    r-&gt;d[2] = t &amp; nonzero; t &gt;&gt;= 64;
+    t += (uint128_t)(~a-&gt;d[3]) + SECP256K1_N_3;
+    r-&gt;d[3] = t &amp; nonzero;</B></FONT>
+<FONT color="#151b8d"><div style="position:absolute;left:0"><A HREF="javascript:ZweiFrames('match18-0.html#4',2,'match18-top.html#4',1)"><IMG SRC="back.gif" ALT="other" BORDER="0" ALIGN="left"></A></div><B>}
+
+SECP256K1_INLINE static int secp256k1_scalar_is_one(const secp256k1_scalar *a) {
+    return ((a-&gt;d[0] ^ 1) | a-&gt;d[1] | a-&gt;d[2] | a-&gt;d[3]) == 0;
+}
+
+static int secp256k1_scalar_is_high(const secp256k1_scalar *a) {
+    int yes = 0;
+    int no = 0;
+    no |= (a-&gt;d[3] &lt; SECP256K1_N_H_3);
+    yes |= (a-&gt;d[3] &gt; SECP256K1_N_H_3) &amp; ~no;
+    no |= (a-&gt;d[2] &lt; SECP256K1_N_H_2) &amp; ~yes; /* No need for a &gt; check. */
+    no |= (a-&gt;d[1] &lt; SECP256K1_N_H_1) &amp; ~yes;
+    yes |= (a-&gt;d[1] &gt; SECP256K1_N_H_1) &amp; ~no;
+    yes |= (a-&gt;d[0] &gt; SECP256K1_N_H_0) &amp; ~no;</B></FONT>
+    return yes;
+}
+
+<A NAME="5"></A>static int secp256k1_scalar_cond_negate(secp256k1_scalar *r, int flag) {
+    /* If we are flag = 0, mask = 00...00 and this is a no-op;
+     * if we are flag = 1, mask = 11...11 and this is identical to secp256k1_scalar_negate */
+<FONT color="#c8c2a7"><div style="position:absolute;left:0"><A HREF="javascript:ZweiFrames('match18-0.html#5',2,'match18-top.html#5',1)"><IMG SRC="back.gif" ALT="other" BORDER="0" ALIGN="left"></A></div><B>    uint64_t mask = !flag - 1;
+    uint64_t nonzero = (secp256k1_scalar_is_zero(r) != 0) - 1;
+    uint128_t t = (uint128_t)(r-&gt;d[0] ^ mask) + ((SECP256K1_N_0 + 1) &amp; mask);
+    r-&gt;d[0] = t &amp; nonzero; t &gt;&gt;= 64;
+    t += (uint128_t)(r-&gt;d[1] ^ mask) + (SECP256K1_N_1 &amp; mask);
+    r-&gt;d[1] = t &amp; nonzero; t &gt;&gt;= 64;
+    t += (uint128_t)(r-&gt;d[2] ^ mask) + (SECP256K1_N_2 &amp; mask);
+    r-&gt;d[2] = t &amp; nonzero; t &gt;&gt;= 64;
+    t += (uint128_t)(r-&gt;d[3] ^ mask) + (SECP256K1_N_3 &amp; mask);
+    r-&gt;d[3] = t &amp; nonzero;
+    return 2 * (mask == 0) - 1;
+}
+
+/* Inspired by the macros in OpenSSL's crypto/bn/asm/x86_64-gcc.c. */
+
+/** Add a*b to the number defined by (c0,c1,c2). c2 must never overflow. */
+#define muladd(a,b) { \
+    uint64_t tl, th; \
+    { \
+        uint128_t t = (uint128_t)a * b; \
+        th = t &gt;&gt; 64;         /* at most 0xFFFFFFFFFFFFFFFE */ \
+        tl = t; \
+    } \
+    c0 += tl;                 /* overflow is handled on the next line */ \
+    th += (c0 &lt; tl) ? 1 : 0;  /* at most 0xFFFFFFFFFFFFFFFF */ \
+    c1 += th;                 /* overflow is handled on the next line */ \
+    c2 += (c1 &lt; th) ? 1 : 0;  /* never overflows by contract (verified in the next line) */ \
+    VERIFY_CHECK((c1 &gt;= th) || (c2 != 0)); \
+}
+
+/** Add a*b to the number defined by (c0,c1). c1 must never overflow. */
+#define muladd_fast(a,b) { \
+    uint64_t tl, th; \
+    { \
+        uint128_t t = (uint128_t)a * b; \
+        th = t &gt;&gt; 64;         /* at most 0xFFFFFFFFFFFFFFFE */ \
+        tl = t; \
+    } \
+    c0 += tl;                 /* overflow is handled on the next line */ \
+    th += (c0 &lt; tl) ? 1 : 0;  /* at most 0xFFFFFFFFFFFFFFFF */ \
+    c1 += th;                 /* never overflows by contract (verified in the next line) */ \
+    VERIFY_CHECK(c1 &gt;= th); \
+}
+
+/** Add 2*a*b to the number defined by (c0,c1,c2). c2 must never overflow. */
+#define muladd2(a,b) { \
+    uint64_t tl, th, th2, tl2; \
+    { \
+        uint128_t t = (uint128_t)a * b; \
+        th = t &gt;&gt; 64;               /* at most 0xFFFFFFFFFFFFFFFE */ \
+        tl = t; \
+    } \
+    th2 = th + th;                  /* at most 0xFFFFFFFFFFFFFFFE (in case th was 0x7FFFFFFFFFFFFFFF) */ \
+    c2 += (th2 &lt; th) ? 1 : 0;       /* never overflows by contract (verified the next line) */ \
+    VERIFY_CHECK((th2 &gt;= th) || (c2 != 0)); \
+    tl2 = tl + tl;                  /* at most 0xFFFFFFFFFFFFFFFE (in case the lowest 63 bits of tl were 0x7FFFFFFFFFFFFFFF) */ \
+    th2 += (tl2 &lt; tl) ? 1 : 0;      /* at most 0xFFFFFFFFFFFFFFFF */ \
+    c0 += tl2;                      /* overflow is handled on the next line */ \
+    th2 += (c0 &lt; tl2) ? 1 : 0;      /* second overflow is handled on the next line */ \
+    c2 += (c0 &lt; tl2) &amp; (th2 == 0);  /* never overflows by contract (verified the next line) */ \
+    VERIFY_CHECK((c0 &gt;= tl2) || (th2 != 0) || (c2 != 0)); \
+    c1 += th2;                      /* overflow is handled on the next line */ \
+    c2 += (c1 &lt; th2) ? 1 : 0;       /* never overflows by contract (verified the next line) */ \
+    VERIFY_CHECK((c1 &gt;= th2) || (c2 != 0)); \
+}
+
+/** Add a to the number defined by (c0,c1,c2). c2 must never overflow. */
+#define sumadd(a) { \
+    unsigned int over; \
+    c0 += (a);                  /* overflow is handled on the next line */ \
+    over = (c0 &lt; (a)) ? 1 : 0; \
+    c1 += over;                 /* overflow is handled on the next line */ \
+    c2 += (c1 &lt; over) ? 1 : 0;  /* never overflows by contract */ \
+}
+
+/** Add a to the number defined by (c0,c1). c1 must never overflow, c2 must be zero. */
+#define sumadd_fast(a) { \
+    c0 += (a);                 /* overflow is handled on the next line */ \
+    c1 += (c0 &lt; (a)) ? 1 : 0;  /* never overflows by contract (verified the next line) */ \
+    VERIFY_CHECK((c1 != 0) | (c0 &gt;= (a))); \
+    VERIFY_CHECK(c2 == 0); \
+}
+
+/** Extract the lowest 64 bits of (c0,c1,c2) into n, and left shift the number 64 bits. */
+#define extract(n) { \
+    (n) = c0; \
+    c0 = c1; \
+    c1 = c2; \
+    c2 = 0; \
+}
+
+/** Extract the lowest 64 bits of (c0,c1,c2) into n, and left shift the number 64 bits. c2 is required to be zero. */
+#define extract_fast(n) { \
+    (n) = c0; \
+    c0 = c1; \
+    c1 = 0; \
+    VERIFY_CHECK(c2 == 0); \
+}
+
+static void secp256k1_scalar_reduce_512(secp256k1_scalar *r, const uint64_t *l) {
+#ifdef USE_ASM_X86_64
+    /* Reduce 512 bits into 385. */
+    uint64_t m0, m1, m2, m3, m4, m5, m6;
+    uint64_t p0, p1, p2, p3, p4;
+    uint64_t c;
+
+    __asm__ __volatile__(
+    /* Preload. */
+    &quot;movq 32(%%rsi), %%r11\n&quot;
+    &quot;movq 40(%%rsi), %%r12\n&quot;
+    &quot;movq 48(%%rsi), %%r13\n&quot;
+    &quot;movq 56(%%rsi), %%r14\n&quot;
+    /* Initialize r8,r9,r10 */
+    &quot;movq 0(%%rsi), %%r8\n&quot;
+    &quot;xorq %%r9, %%r9\n&quot;
+    &quot;xorq %%r10, %%r10\n&quot;
+    /* (r8,r9) += n0 * c0 */
+    &quot;movq %8, %%rax\n&quot;
+    &quot;mulq %%r11\n&quot;
+    &quot;addq %%rax, %%r8\n&quot;
+    &quot;adcq %%rdx, %%r9\n&quot;
+    /* extract m0 */
+    &quot;movq %%r8, %q0\n&quot;
+    &quot;xorq %%r8, %%r8\n&quot;
+    /* (r9,r10) += l1 */
+    &quot;addq 8(%%rsi), %%r9\n&quot;
+    &quot;adcq $0, %%r10\n&quot;
+    /* (r9,r10,r8) += n1 * c0 */
+    &quot;movq %8, %%rax\n&quot;
+    &quot;mulq %%r12\n&quot;
+    &quot;addq %%rax, %%r9\n&quot;
+    &quot;adcq %%rdx, %%r10\n&quot;
+    &quot;adcq $0, %%r8\n&quot;
+    /* (r9,r10,r8) += n0 * c1 */
+    &quot;movq %9, %%rax\n&quot;
+    &quot;mulq %%r11\n&quot;
+    &quot;addq %%rax, %%r9\n&quot;
+    &quot;adcq %%rdx, %%r10\n&quot;
+    &quot;adcq $0, %%r8\n&quot;
+    /* extract m1 */
+    &quot;movq %%r9, %q1\n&quot;
+    &quot;xorq %%r9, %%r9\n&quot;
+    /* (r10,r8,r9) += l2 */
+    &quot;addq 16(%%rsi), %%r10\n&quot;
+    &quot;adcq $0, %%r8\n&quot;
+    &quot;adcq $0, %%r9\n&quot;
+    /* (r10,r8,r9) += n2 * c0 */
+    &quot;movq %8, %%rax\n&quot;
+    &quot;mulq %%r13\n&quot;
+    &quot;addq %%rax, %%r10\n&quot;
+    &quot;adcq %%rdx, %%r8\n&quot;
+    &quot;adcq $0, %%r9\n&quot;
+    /* (r10,r8,r9) += n1 * c1 */
+    &quot;movq %9, %%rax\n&quot;
+    &quot;mulq %%r12\n&quot;
+    &quot;addq %%rax, %%r10\n&quot;
+    &quot;adcq %%rdx, %%r8\n&quot;
+    &quot;adcq $0, %%r9\n&quot;
+    /* (r10,r8,r9) += n0 */
+    &quot;addq %%r11, %%r10\n&quot;
+    &quot;adcq $0, %%r8\n&quot;
+    &quot;adcq $0, %%r9\n&quot;
+    /* extract m2 */
+    &quot;movq %%r10, %q2\n&quot;
+    &quot;xorq %%r10, %%r10\n&quot;
+    /* (r8,r9,r10) += l3 */
+    &quot;addq 24(%%rsi), %%r8\n&quot;
+    &quot;adcq $0, %%r9\n&quot;
+    &quot;adcq $0, %%r10\n&quot;
+    /* (r8,r9,r10) += n3 * c0 */
+    &quot;movq %8, %%rax\n&quot;
+    &quot;mulq %%r14\n&quot;
+    &quot;addq %%rax, %%r8\n&quot;
+    &quot;adcq %%rdx, %%r9\n&quot;
+    &quot;adcq $0, %%r10\n&quot;
+    /* (r8,r9,r10) += n2 * c1 */
+    &quot;movq %9, %%rax\n&quot;
+    &quot;mulq %%r13\n&quot;
+    &quot;addq %%rax, %%r8\n&quot;
+    &quot;adcq %%rdx, %%r9\n&quot;
+    &quot;adcq $0, %%r10\n&quot;
+    /* (r8,r9,r10) += n1 */
+    &quot;addq %%r12, %%r8\n&quot;
+    &quot;adcq $0, %%r9\n&quot;
+    &quot;adcq $0, %%r10\n&quot;
+    /* extract m3 */
+    &quot;movq %%r8, %q3\n&quot;
+    &quot;xorq %%r8, %%r8\n&quot;
+    /* (r9,r10,r8) += n3 * c1 */
+    &quot;movq %9, %%rax\n&quot;
+    &quot;mulq %%r14\n&quot;
+    &quot;addq %%rax, %%r9\n&quot;
+    &quot;adcq %%rdx, %%r10\n&quot;
+    &quot;adcq $0, %%r8\n&quot;
+    /* (r9,r10,r8) += n2 */
+    &quot;addq %%r13, %%r9\n&quot;
+    &quot;adcq $0, %%r10\n&quot;
+    &quot;adcq $0, %%r8\n&quot;
+    /* extract m4 */
+    &quot;movq %%r9, %q4\n&quot;
+    /* (r10,r8) += n3 */
+    &quot;addq %%r14, %%r10\n&quot;
+    &quot;adcq $0, %%r8\n&quot;
+    /* extract m5 */
+    &quot;movq %%r10, %q5\n&quot;
+    /* extract m6 */
+    &quot;movq %%r8, %q6\n&quot;
+    : &quot;=g&quot;(m0), &quot;=g&quot;(m1), &quot;=g&quot;(m2), &quot;=g&quot;(m3), &quot;=g&quot;(m4), &quot;=g&quot;(m5), &quot;=g&quot;(m6)
+    : &quot;S&quot;(l), &quot;n&quot;(SECP256K1_N_C_0), &quot;n&quot;(SECP256K1_N_C_1)
+    : &quot;rax&quot;, &quot;rdx&quot;, &quot;r8&quot;, &quot;r9&quot;, &quot;r10&quot;, &quot;r11&quot;, &quot;r12&quot;, &quot;r13&quot;, &quot;r14&quot;, &quot;cc&quot;);
+
+    /* Reduce 385 bits into 258. */
+    __asm__ __volatile__(
+    /* Preload */
+    &quot;movq %q9, %%r11\n&quot;
+    &quot;movq %q10, %%r12\n&quot;
+    &quot;movq %q11, %%r13\n&quot;
+    /* Initialize (r8,r9,r10) */
+    &quot;movq %q5, %%r8\n&quot;
+    &quot;xorq %%r9, %%r9\n&quot;
+    &quot;xorq %%r10, %%r10\n&quot;
+    /* (r8,r9) += m4 * c0 */
+    &quot;movq %12, %%rax\n&quot;
+    &quot;mulq %%r11\n&quot;
+    &quot;addq %%rax, %%r8\n&quot;
+    &quot;adcq %%rdx, %%r9\n&quot;
+    /* extract p0 */
+    &quot;movq %%r8, %q0\n&quot;
+    &quot;xorq %%r8, %%r8\n&quot;
+    /* (r9,r10) += m1 */
+    &quot;addq %q6, %%r9\n&quot;
+    &quot;adcq $0, %%r10\n&quot;
+    /* (r9,r10,r8) += m5 * c0 */
+    &quot;movq %12, %%rax\n&quot;
+    &quot;mulq %%r12\n&quot;
+    &quot;addq %%rax, %%r9\n&quot;
+    &quot;adcq %%rdx, %%r10\n&quot;
+    &quot;adcq $0, %%r8\n&quot;
+    /* (r9,r10,r8) += m4 * c1 */
+    &quot;movq %13, %%rax\n&quot;
+    &quot;mulq %%r11\n&quot;
+    &quot;addq %%rax, %%r9\n&quot;
+    &quot;adcq %%rdx, %%r10\n&quot;
+    &quot;adcq $0, %%r8\n&quot;
+    /* extract p1 */
+    &quot;movq %%r9, %q1\n&quot;
+    &quot;xorq %%r9, %%r9\n&quot;
+    /* (r10,r8,r9) += m2 */
+    &quot;addq %q7, %%r10\n&quot;
+    &quot;adcq $0, %%r8\n&quot;
+    &quot;adcq $0, %%r9\n&quot;
+    /* (r10,r8,r9) += m6 * c0 */
+    &quot;movq %12, %%rax\n&quot;
+    &quot;mulq %%r13\n&quot;
+    &quot;addq %%rax, %%r10\n&quot;
+    &quot;adcq %%rdx, %%r8\n&quot;
+    &quot;adcq $0, %%r9\n&quot;
+    /* (r10,r8,r9) += m5 * c1 */
+    &quot;movq %13, %%rax\n&quot;
+    &quot;mulq %%r12\n&quot;
+    &quot;addq %%rax, %%r10\n&quot;
+    &quot;adcq %%rdx, %%r8\n&quot;
+    &quot;adcq $0, %%r9\n&quot;
+    /* (r10,r8,r9) += m4 */
+    &quot;addq %%r11, %%r10\n&quot;
+    &quot;adcq $0, %%r8\n&quot;
+    &quot;adcq $0, %%r9\n&quot;
+    /* extract p2 */
+    &quot;movq %%r10, %q2\n&quot;
+    /* (r8,r9) += m3 */
+    &quot;addq %q8, %%r8\n&quot;
+    &quot;adcq $0, %%r9\n&quot;
+    /* (r8,r9) += m6 * c1 */
+    &quot;movq %13, %%rax\n&quot;
+    &quot;mulq %%r13\n&quot;
+    &quot;addq %%rax, %%r8\n&quot;
+    &quot;adcq %%rdx, %%r9\n&quot;
+    /* (r8,r9) += m5 */
+    &quot;addq %%r12, %%r8\n&quot;
+    &quot;adcq $0, %%r9\n&quot;
+    /* extract p3 */
+    &quot;movq %%r8, %q3\n&quot;
+    /* (r9) += m6 */
+    &quot;addq %%r13, %%r9\n&quot;
+    /* extract p4 */
+    &quot;movq %%r9, %q4\n&quot;
+    : &quot;=&amp;g&quot;(p0), &quot;=&amp;g&quot;(p1), &quot;=&amp;g&quot;(p2), &quot;=g&quot;(p3), &quot;=g&quot;(p4)
+    : &quot;g&quot;(m0), &quot;g&quot;(m1), &quot;g&quot;(m2), &quot;g&quot;(m3), &quot;g&quot;(m4), &quot;g&quot;(m5), &quot;g&quot;(m6), &quot;n&quot;(SECP256K1_N_C_0), &quot;n&quot;(SECP256K1_N_C_1)
+    : &quot;rax&quot;, &quot;rdx&quot;, &quot;r8&quot;, &quot;r9&quot;, &quot;r10&quot;, &quot;r11&quot;, &quot;r12&quot;, &quot;r13&quot;, &quot;cc&quot;);
+
+    /* Reduce 258 bits into 256. */
+    __asm__ __volatile__(
+    /* Preload */
+    &quot;movq %q5, %%r10\n&quot;
+    /* (rax,rdx) = p4 * c0 */
+    &quot;movq %7, %%rax\n&quot;
+    &quot;mulq %%r10\n&quot;
+    /* (rax,rdx) += p0 */
+    &quot;addq %q1, %%rax\n&quot;
+    &quot;adcq $0, %%rdx\n&quot;
+    /* extract r0 */
+    &quot;movq %%rax, 0(%q6)\n&quot;
+    /* Move to (r8,r9) */
+    &quot;movq %%rdx, %%r8\n&quot;
+    &quot;xorq %%r9, %%r9\n&quot;
+    /* (r8,r9) += p1 */
+    &quot;addq %q2, %%r8\n&quot;
+    &quot;adcq $0, %%r9\n&quot;
+    /* (r8,r9) += p4 * c1 */
+    &quot;movq %8, %%rax\n&quot;
+    &quot;mulq %%r10\n&quot;
+    &quot;addq %%rax, %%r8\n&quot;
+    &quot;adcq %%rdx, %%r9\n&quot;
+    /* Extract r1 */
+    &quot;movq %%r8, 8(%q6)\n&quot;
+    &quot;xorq %%r8, %%r8\n&quot;
+    /* (r9,r8) += p4 */
+    &quot;addq %%r10, %%r9\n&quot;
+    &quot;adcq $0, %%r8\n&quot;
+    /* (r9,r8) += p2 */
+    &quot;addq %q3, %%r9\n&quot;
+    &quot;adcq $0, %%r8\n&quot;
+    /* Extract r2 */
+    &quot;movq %%r9, 16(%q6)\n&quot;
+    &quot;xorq %%r9, %%r9\n&quot;
+    /* (r8,r9) += p3 */
+    &quot;addq %q4, %%r8\n&quot;
+    &quot;adcq $0, %%r9\n&quot;
+    /* Extract r3 */
+    &quot;movq %%r8, 24(%q6)\n&quot;
+    /* Extract c */
+    &quot;movq %%r9, %q0\n&quot;
+    : &quot;=g&quot;(c)
+    : &quot;g&quot;(p0), &quot;g&quot;(p1), &quot;g&quot;(p2), &quot;g&quot;(p3), &quot;g&quot;(p4), &quot;D&quot;(r), &quot;n&quot;(SECP256K1_N_C_0), &quot;n&quot;(SECP256K1_N_C_1)
+    : &quot;rax&quot;, &quot;rdx&quot;, &quot;r8&quot;, &quot;r9&quot;, &quot;r10&quot;, &quot;cc&quot;, &quot;memory&quot;);
+#else
+    uint128_t c;
+    uint64_t c0, c1, c2;
+    uint64_t n0 = l[4], n1 = l[5], n2 = l[6], n3 = l[7];
+    uint64_t m0, m1, m2, m3, m4, m5;
+    uint32_t m6;
+    uint64_t p0, p1, p2, p3;
+    uint32_t p4;
+
+    /* Reduce 512 bits into 385. */
+    /* m[0..6] = l[0..3] + n[0..3] * SECP256K1_N_C. */
+    c0 = l[0]; c1 = 0; c2 = 0;
+    muladd_fast(n0, SECP256K1_N_C_0);
+    extract_fast(m0);
+    sumadd_fast(l[1]);
+    muladd(n1, SECP256K1_N_C_0);
+    muladd(n0, SECP256K1_N_C_1);
+    extract(m1);
+    sumadd(l[2]);
+    muladd(n2, SECP256K1_N_C_0);
+    muladd(n1, SECP256K1_N_C_1);
+    sumadd(n0);
+    extract(m2);
+    sumadd(l[3]);
+    muladd(n3, SECP256K1_N_C_0);
+    muladd(n2, SECP256K1_N_C_1);
+    sumadd(n1);
+    extract(m3);
+    muladd(n3, SECP256K1_N_C_1);
+    sumadd(n2);
+    extract(m4);
+    sumadd_fast(n3);
+    extract_fast(m5);
+    VERIFY_CHECK(c0 &lt;= 1);
+    m6 = c0;
+
+    /* Reduce 385 bits into 258. */
+    /* p[0..4] = m[0..3] + m[4..6] * SECP256K1_N_C. */
+    c0 = m0; c1 = 0; c2 = 0;
+    muladd_fast(m4, SECP256K1_N_C_0);
+    extract_fast(p0);
+    sumadd_fast(m1);
+    muladd(m5, SECP256K1_N_C_0);
+    muladd(m4, SECP256K1_N_C_1);
+    extract(p1);
+    sumadd(m2);
+    muladd(m6, SECP256K1_N_C_0);
+    muladd(m5, SECP256K1_N_C_1);
+    sumadd(m4);
+    extract(p2);
+    sumadd_fast(m3);
+    muladd_fast(m6, SECP256K1_N_C_1);
+    sumadd_fast(m5);
+    extract_fast(p3);
+    p4 = c0 + m6;
+    VERIFY_CHECK(p4 &lt;= 2);
+
+    /* Reduce 258 bits into 256. */
+    /* r[0..3] = p[0..3] + p[4] * SECP256K1_N_C. */
+    c = p0 + (uint128_t)SECP256K1_N_C_0 * p4;
+    r-&gt;d[0] = c &amp; 0xFFFFFFFFFFFFFFFFULL; c &gt;&gt;= 64;
+    c += p1 + (uint128_t)SECP256K1_N_C_1 * p4;
+    r-&gt;d[1] = c &amp; 0xFFFFFFFFFFFFFFFFULL; c &gt;&gt;= 64;
+    c += p2 + (uint128_t)p4;
+    r-&gt;d[2] = c &amp; 0xFFFFFFFFFFFFFFFFULL; c &gt;&gt;= 64;
+    c += p3;
+    r-&gt;d[3] = c &amp; 0xFFFFFFFFFFFFFFFFULL; c &gt;&gt;= 64;</B></FONT>
+#endif
+
+    /* Final reduction of r. */
+    secp256k1_scalar_reduce(r, c + secp256k1_scalar_check_overflow(r));
+}
+
+static void secp256k1_scalar_mul_512(uint64_t l[8], const secp256k1_scalar *a, const secp256k1_scalar *b) {
+#ifdef USE_ASM_X86_64
+    const uint64_t *pb = b-&gt;d;
+    __asm__ __volatile__(
+    /* Preload */
+    &quot;movq 0(%%rdi), %%r15\n&quot;
+    &quot;movq 8(%%rdi), %%rbx\n&quot;
+    &quot;movq 16(%%rdi), %%rcx\n&quot;
+    &quot;movq 0(%%rdx), %%r11\n&quot;
+    &quot;movq 8(%%rdx), %%r12\n&quot;
+    &quot;movq 16(%%rdx), %%r13\n&quot;
+    &quot;movq 24(%%rdx), %%r14\n&quot;
+    /* (rax,rdx) = a0 * b0 */
+    &quot;movq %%r15, %%rax\n&quot;
+    &quot;mulq %%r11\n&quot;
+    /* Extract l0 */
+    &quot;movq %%rax, 0(%%rsi)\n&quot;
+    /* (r8,r9,r10) = (rdx) */
+    &quot;movq %%rdx, %%r8\n&quot;
+    &quot;xorq %%r9, %%r9\n&quot;
+    &quot;xorq %%r10, %%r10\n&quot;
+    /* (r8,r9,r10) += a0 * b1 */
+    &quot;movq %%r15, %%rax\n&quot;
+    &quot;mulq %%r12\n&quot;
+    &quot;addq %%rax, %%r8\n&quot;
+    &quot;adcq %%rdx, %%r9\n&quot;
+    &quot;adcq $0, %%r10\n&quot;
+    /* (r8,r9,r10) += a1 * b0 */
+    &quot;movq %%rbx, %%rax\n&quot;
+    &quot;mulq %%r11\n&quot;
+    &quot;addq %%rax, %%r8\n&quot;
+    &quot;adcq %%rdx, %%r9\n&quot;
+    &quot;adcq $0, %%r10\n&quot;
+    /* Extract l1 */
+    &quot;movq %%r8, 8(%%rsi)\n&quot;
+    &quot;xorq %%r8, %%r8\n&quot;
+    /* (r9,r10,r8) += a0 * b2 */
+    &quot;movq %%r15, %%rax\n&quot;
+    &quot;mulq %%r13\n&quot;
+    &quot;addq %%rax, %%r9\n&quot;
+    &quot;adcq %%rdx, %%r10\n&quot;
+    &quot;adcq $0, %%r8\n&quot;
+    /* (r9,r10,r8) += a1 * b1 */
+    &quot;movq %%rbx, %%rax\n&quot;
+    &quot;mulq %%r12\n&quot;
+    &quot;addq %%rax, %%r9\n&quot;
+    &quot;adcq %%rdx, %%r10\n&quot;
+    &quot;adcq $0, %%r8\n&quot;
+    /* (r9,r10,r8) += a2 * b0 */
+    &quot;movq %%rcx, %%rax\n&quot;
+    &quot;mulq %%r11\n&quot;
+    &quot;addq %%rax, %%r9\n&quot;
+    &quot;adcq %%rdx, %%r10\n&quot;
+    &quot;adcq $0, %%r8\n&quot;
+    /* Extract l2 */
+    &quot;movq %%r9, 16(%%rsi)\n&quot;
+    &quot;xorq %%r9, %%r9\n&quot;
+    /* (r10,r8,r9) += a0 * b3 */
+    &quot;movq %%r15, %%rax\n&quot;
+    &quot;mulq %%r14\n&quot;
+    &quot;addq %%rax, %%r10\n&quot;
+    &quot;adcq %%rdx, %%r8\n&quot;
+    &quot;adcq $0, %%r9\n&quot;
+    /* Preload a3 */
+    &quot;movq 24(%%rdi), %%r15\n&quot;
+    /* (r10,r8,r9) += a1 * b2 */
+    &quot;movq %%rbx, %%rax\n&quot;
+    &quot;mulq %%r13\n&quot;
+    &quot;addq %%rax, %%r10\n&quot;
+    &quot;adcq %%rdx, %%r8\n&quot;
+    &quot;adcq $0, %%r9\n&quot;
+    /* (r10,r8,r9) += a2 * b1 */
+    &quot;movq %%rcx, %%rax\n&quot;
+    &quot;mulq %%r12\n&quot;
+    &quot;addq %%rax, %%r10\n&quot;
+    &quot;adcq %%rdx, %%r8\n&quot;
+    &quot;adcq $0, %%r9\n&quot;
+    /* (r10,r8,r9) += a3 * b0 */
+    &quot;movq %%r15, %%rax\n&quot;
+    &quot;mulq %%r11\n&quot;
+    &quot;addq %%rax, %%r10\n&quot;
+    &quot;adcq %%rdx, %%r8\n&quot;
+    &quot;adcq $0, %%r9\n&quot;
+    /* Extract l3 */
+    &quot;movq %%r10, 24(%%rsi)\n&quot;
+    &quot;xorq %%r10, %%r10\n&quot;
+    /* (r8,r9,r10) += a1 * b3 */
+    &quot;movq %%rbx, %%rax\n&quot;
+    &quot;mulq %%r14\n&quot;
+    &quot;addq %%rax, %%r8\n&quot;
+    &quot;adcq %%rdx, %%r9\n&quot;
+    &quot;adcq $0, %%r10\n&quot;
+    /* (r8,r9,r10) += a2 * b2 */
+    &quot;movq %%rcx, %%rax\n&quot;
+    &quot;mulq %%r13\n&quot;
+    &quot;addq %%rax, %%r8\n&quot;
+    &quot;adcq %%rdx, %%r9\n&quot;
+    &quot;adcq $0, %%r10\n&quot;
+    /* (r8,r9,r10) += a3 * b1 */
+    &quot;movq %%r15, %%rax\n&quot;
+    &quot;mulq %%r12\n&quot;
+    &quot;addq %%rax, %%r8\n&quot;
+    &quot;adcq %%rdx, %%r9\n&quot;
+    &quot;adcq $0, %%r10\n&quot;
+    /* Extract l4 */
+    &quot;movq %%r8, 32(%%rsi)\n&quot;
+    &quot;xorq %%r8, %%r8\n&quot;
+    /* (r9,r10,r8) += a2 * b3 */
+    &quot;movq %%rcx, %%rax\n&quot;
+    &quot;mulq %%r14\n&quot;
+    &quot;addq %%rax, %%r9\n&quot;
+    &quot;adcq %%rdx, %%r10\n&quot;
+    &quot;adcq $0, %%r8\n&quot;
+    /* (r9,r10,r8) += a3 * b2 */
+    &quot;movq %%r15, %%rax\n&quot;
+    &quot;mulq %%r13\n&quot;
+    &quot;addq %%rax, %%r9\n&quot;
+    &quot;adcq %%rdx, %%r10\n&quot;
+    &quot;adcq $0, %%r8\n&quot;
+    /* Extract l5 */
+    &quot;movq %%r9, 40(%%rsi)\n&quot;
+    /* (r10,r8) += a3 * b3 */
+    &quot;movq %%r15, %%rax\n&quot;
+    &quot;mulq %%r14\n&quot;
+    &quot;addq %%rax, %%r10\n&quot;
+    &quot;adcq %%rdx, %%r8\n&quot;
+    /* Extract l6 */
+    &quot;movq %%r10, 48(%%rsi)\n&quot;
+    /* Extract l7 */
+    &quot;movq %%r8, 56(%%rsi)\n&quot;
+    : &quot;+d&quot;(pb)
+    : &quot;S&quot;(l), &quot;D&quot;(a-&gt;d)
+<A NAME="6"></A>    : &quot;rax&quot;, &quot;rbx&quot;, &quot;rcx&quot;, &quot;r8&quot;, &quot;r9&quot;, &quot;r10&quot;, &quot;r11&quot;, &quot;r12&quot;, &quot;r13&quot;, &quot;r14&quot;, &quot;r15&quot;, &quot;cc&quot;, &quot;memory&quot;);
+#else
+    /* 160 bit accumulator. */
+<FONT color="#50ebec"><div style="position:absolute;left:0"><A HREF="javascript:ZweiFrames('match18-0.html#6',2,'match18-top.html#6',1)"><IMG SRC="back.gif" ALT="other" BORDER="0" ALIGN="left"></A></div><B>    uint64_t c0 = 0, c1 = 0;
+    uint32_t c2 = 0;
+
+    /* l[0..7] = a[0..3] * b[0..3]. */
+    muladd_fast(a-&gt;d[0], b-&gt;d[0]);
+    extract_fast(l[0]);
+    muladd(a-&gt;d[0], b-&gt;d[1]);
+    muladd(a-&gt;d[1], b-&gt;d[0]);
+    extract(l[1]);
+    muladd(a-&gt;d[0], b-&gt;d[2]);
+    muladd(a-&gt;d[1], b-&gt;d[1]);
+    muladd(a-&gt;d[2], b-&gt;d[0]);
+    extract(l[2]);
+    muladd(a-&gt;d[0], b-&gt;d[3]);
+    muladd(a-&gt;d[1], b-&gt;d[2]);
+    muladd(a-&gt;d[2], b-&gt;d[1]);
+    muladd(a-&gt;d[3], b-&gt;d[0]);
+    extract(l[3]);
+    muladd(a-&gt;d[1], b-&gt;d[3]);
+    muladd(a-&gt;d[2], b-&gt;d[2]);
+    muladd(a-&gt;d[3], b-&gt;d[1]);
+    extract(l[4]);
+    muladd(a-&gt;d[2], b-&gt;d[3]);
+    muladd(a-&gt;d[3], b-&gt;d[2]);
+    extract(l[5]);
+    muladd_fast(a-&gt;d[3], b-&gt;d[3]);
+    extract_fast(l[6]);
+    VERIFY_CHECK(c1 == 0);
+    l[7] = c0;
+#endif
+}
+
+static void secp256k1_scalar_sqr_512(uint64_t l[8], const secp256k1_scalar *a) {
+#ifdef USE_ASM_X86_64
+    __asm__ __volatile__(
+    /* Preload */
+    &quot;movq 0(%%rdi), %%r11\n&quot;
+    &quot;movq 8(%%rdi), %%r12\n&quot;
+    &quot;movq 16(%%rdi), %%r13\n&quot;
+    &quot;movq 24(%%rdi), %%r14\n&quot;
+    /* (rax,rdx) = a0 * a0 */
+    &quot;movq %%r11, %%rax\n&quot;
+    &quot;mulq %%r11\n&quot;
+    /* Extract l0 */
+    &quot;movq %%rax, 0(%%rsi)\n&quot;
+    /* (r8,r9,r10) = (rdx,0) */
+    &quot;movq %%rdx, %%r8\n&quot;
+    &quot;xorq %%r9, %%r9\n&quot;
+    &quot;xorq %%r10, %%r10\n&quot;
+    /* (r8,r9,r10) += 2 * a0 * a1 */
+    &quot;movq %%r11, %%rax\n&quot;
+    &quot;mulq %%r12\n&quot;
+    &quot;addq %%rax, %%r8\n&quot;
+    &quot;adcq %%rdx, %%r9\n&quot;
+    &quot;adcq $0, %%r10\n&quot;
+    &quot;addq %%rax, %%r8\n&quot;
+    &quot;adcq %%rdx, %%r9\n&quot;
+    &quot;adcq $0, %%r10\n&quot;
+    /* Extract l1 */
+    &quot;movq %%r8, 8(%%rsi)\n&quot;
+    &quot;xorq %%r8, %%r8\n&quot;
+    /* (r9,r10,r8) += 2 * a0 * a2 */
+    &quot;movq %%r11, %%rax\n&quot;
+    &quot;mulq %%r13\n&quot;
+    &quot;addq %%rax, %%r9\n&quot;
+    &quot;adcq %%rdx, %%r10\n&quot;
+    &quot;adcq $0, %%r8\n&quot;
+    &quot;addq %%rax, %%r9\n&quot;
+    &quot;adcq %%rdx, %%r10\n&quot;
+    &quot;adcq $0, %%r8\n&quot;
+    /* (r9,r10,r8) += a1 * a1 */
+    &quot;movq %%r12, %%rax\n&quot;
+    &quot;mulq %%r12\n&quot;
+    &quot;addq %%rax, %%r9\n&quot;
+    &quot;adcq %%rdx, %%r10\n&quot;
+    &quot;adcq $0, %%r8\n&quot;
+    /* Extract l2 */
+    &quot;movq %%r9, 16(%%rsi)\n&quot;
+    &quot;xorq %%r9, %%r9\n&quot;
+    /* (r10,r8,r9) += 2 * a0 * a3 */
+    &quot;movq %%r11, %%rax\n&quot;
+    &quot;mulq %%r14\n&quot;
+    &quot;addq %%rax, %%r10\n&quot;
+    &quot;adcq %%rdx, %%r8\n&quot;
+    &quot;adcq $0, %%r9\n&quot;
+    &quot;addq %%rax, %%r10\n&quot;
+    &quot;adcq %%rdx, %%r8\n&quot;
+    &quot;adcq $0, %%r9\n&quot;
+    /* (r10,r8,r9) += 2 * a1 * a2 */
+    &quot;movq %%r12, %%rax\n&quot;
+    &quot;mulq %%r13\n&quot;
+    &quot;addq %%rax, %%r10\n&quot;
+    &quot;adcq %%rdx, %%r8\n&quot;
+    &quot;adcq $0, %%r9\n&quot;
+    &quot;addq %%rax, %%r10\n&quot;
+    &quot;adcq %%rdx, %%r8\n&quot;
+    &quot;adcq $0, %%r9\n&quot;
+    /* Extract l3 */
+    &quot;movq %%r10, 24(%%rsi)\n&quot;
+    &quot;xorq %%r10, %%r10\n&quot;
+    /* (r8,r9,r10) += 2 * a1 * a3 */
+    &quot;movq %%r12, %%rax\n&quot;
+    &quot;mulq %%r14\n&quot;
+    &quot;addq %%rax, %%r8\n&quot;
+    &quot;adcq %%rdx, %%r9\n&quot;
+    &quot;adcq $0, %%r10\n&quot;
+    &quot;addq %%rax, %%r8\n&quot;
+    &quot;adcq %%rdx, %%r9\n&quot;
+    &quot;adcq $0, %%r10\n&quot;
+    /* (r8,r9,r10) += a2 * a2 */
+    &quot;movq %%r13, %%rax\n&quot;
+    &quot;mulq %%r13\n&quot;
+    &quot;addq %%rax, %%r8\n&quot;
+    &quot;adcq %%rdx, %%r9\n&quot;
+    &quot;adcq $0, %%r10\n&quot;
+    /* Extract l4 */
+    &quot;movq %%r8, 32(%%rsi)\n&quot;
+    &quot;xorq %%r8, %%r8\n&quot;
+    /* (r9,r10,r8) += 2 * a2 * a3 */
+    &quot;movq %%r13, %%rax\n&quot;
+    &quot;mulq %%r14\n&quot;
+    &quot;addq %%rax, %%r9\n&quot;
+    &quot;adcq %%rdx, %%r10\n&quot;
+    &quot;adcq $0, %%r8\n&quot;
+    &quot;addq %%rax, %%r9\n&quot;
+    &quot;adcq %%rdx, %%r10\n&quot;
+    &quot;adcq $0, %%r8\n&quot;
+    /* Extract l5 */
+    &quot;movq %%r9, 40(%%rsi)\n&quot;
+    /* (r10,r8) += a3 * a3 */
+    &quot;movq %%r14, %%rax\n&quot;
+    &quot;mulq %%r14\n&quot;
+    &quot;addq %%rax, %%r10\n&quot;
+    &quot;adcq %%rdx, %%r8\n&quot;
+    /* Extract l6 */
+    &quot;movq %%r10, 48(%%rsi)\n&quot;
+    /* Extract l7 */
+    &quot;movq %%r8, 56(%%rsi)\n&quot;
+    :
+    : &quot;S&quot;(l), &quot;D&quot;(a-&gt;d)
+    : &quot;rax&quot;, &quot;rdx&quot;, &quot;r8&quot;, &quot;r9&quot;, &quot;r10&quot;, &quot;r11&quot;, &quot;r12&quot;, &quot;r13&quot;, &quot;r14&quot;, &quot;cc&quot;, &quot;memory&quot;);
+#else
+    /* 160 bit accumulator. */
+    uint64_t c0 = 0, c1 = 0;
+    uint32_t c2 = 0;
+
+    /* l[0..7] = a[0..3] * b[0..3]. */
+    muladd_fast(a-&gt;d[0], a-&gt;d[0]);
+    extract_fast(l[0]);
+    muladd2(a-&gt;d[0], a-&gt;d[1]);
+    extract(l[1]);
+    muladd2(a-&gt;d[0], a-&gt;d[2]);
+    muladd(a-&gt;d[1], a-&gt;d[1]);
+    extract(l[2]);
+    muladd2(a-&gt;d[0], a-&gt;d[3]);
+    muladd2(a-&gt;d[1], a-&gt;d[2]);
+    extract(l[3]);
+    muladd2(a-&gt;d[1], a-&gt;d[3]);
+    muladd(a-&gt;d[2], a-&gt;d[2]);
+    extract(l[4]);
+    muladd2(a-&gt;d[2], a-&gt;d[3]);
+    extract(l[5]);
+    muladd_fast(a-&gt;d[3], a-&gt;d[3]);
+    extract_fast(l[6]);
+    VERIFY_CHECK(c1 == 0);
+    l[7] = c0;
+#endif
+}
+
+#undef sumadd
+#undef sumadd_fast
+#undef muladd
+#undef muladd_fast
+#undef muladd2
+#undef extract
+#undef extract_fast
+
+static void secp256k1_scalar_mul(secp256k1_scalar *r, const secp256k1_scalar *a, const secp256k1_scalar *b) {
+    uint64_t l[8];
+    secp256k1_scalar_mul_512(l, a, b);
+    secp256k1_scalar_reduce_512(r, l);
+}
+
+static int secp256k1_scalar_shr_int(secp256k1_scalar *r, int n) {
+    int ret;
+    VERIFY_CHECK(n &gt; 0);
+    VERIFY_CHECK(n &lt; 16);
+    ret = r-&gt;d[0] &amp; ((1 &lt;&lt; n) - 1);
+    r-&gt;d[0] = (r-&gt;d[0] &gt;&gt; n) + (r-&gt;d[1] &lt;&lt; (64 - n));
+    r-&gt;d[1] = (r-&gt;d[1] &gt;&gt; n) + (r-&gt;d[2] &lt;&lt; (64 - n));
+    r-&gt;d[2] = (r-&gt;d[2] &gt;&gt; n) + (r-&gt;d[3] &lt;&lt; (64 - n));
+    r-&gt;d[3] = (r-&gt;d[3] &gt;&gt; n);</B></FONT>
+    return ret;
+}
+
+static void secp256k1_scalar_sqr(secp256k1_scalar *r, const secp256k1_scalar *a) {
+    uint64_t l[8];
+    secp256k1_scalar_sqr_512(l, a);
+    secp256k1_scalar_reduce_512(r, l);
+}
+<A NAME="7"></A>
+#ifdef USE_ENDOMORPHISM
+static void secp256k1_scalar_split_128(secp256k1_scalar *r1, secp256k1_scalar *r2, const secp256k1_scalar *a) {
+<FONT color="#c58917"><div style="position:absolute;left:0"><A HREF="javascript:ZweiFrames('match18-0.html#7',2,'match18-top.html#7',1)"><IMG SRC="back.gif" ALT="other" BORDER="0" ALIGN="left"></A></div><B>    r1-&gt;d[0] = a-&gt;d[0];
+    r1-&gt;d[1] = a-&gt;d[1];
+    r1-&gt;d[2] = 0;
+    r1-&gt;d[3] = 0;
+    r2-&gt;d[0] = a-&gt;d[2];
+    r2-&gt;d[1] = a-&gt;d[3];
+    r2-&gt;d[2] = 0;
+    r2-&gt;d[3] = 0;
+}
+#endif
+
+SECP256K1_INLINE static int secp256k1_scalar_eq(const secp256k1_scalar *a, const secp256k1_scalar *b) {
+    return ((a-&gt;d[0] ^ b-&gt;d[0]) | (a-&gt;d[1] ^ b-&gt;d[1]) | (a-&gt;d[2] ^ b-&gt;d[2]) | (a-&gt;d[3] ^ b-&gt;d[3])) == 0;
+}
+
+SECP256K1_INLINE static void secp256k1_scalar_mul_shift_var(secp256k1_scalar *r, const secp256k1_scalar *a, const secp256k1_scalar *b, unsigned int shift) {
+    uint64_t l[8];
+    unsigned int shiftlimbs;
+    unsigned int shiftlow;
+    unsigned int shifthigh;
+    VERIFY_CHECK(shift &gt;= 256);
+    secp256k1_scalar_mul_512(l, a, b);
+    shiftlimbs = shift &gt;&gt; 6;
+    shiftlow = shift &amp; 0x3F;
+    shifthigh = 64 - shiftlow;
+    r-&gt;d[0] = shift &lt; 512 ? (l[0 + shiftlimbs] &gt;&gt; shiftlow | (shift &lt; 448 &amp;&amp; shiftlow ? (l[1 + shiftlimbs] &lt;&lt; shifthigh) : 0)) : 0;
+    r-&gt;d[1] = shift &lt; 448 ? (l[1 + shiftlimbs] &gt;&gt; shiftlow | (shift &lt; 384 &amp;&amp; shiftlow ? (l[2 + shiftlimbs] &lt;&lt; shifthigh) : 0)) : 0;
+    r-&gt;d[2] = shift &lt; 384 ? (l[2 + shiftlimbs] &gt;&gt; shiftlow | (shift &lt; 320 &amp;&amp; shiftlow ? (l[3 + shiftlimbs] &lt;&lt; shifthigh) : 0)) : 0;
+    r-&gt;d[3] = shift &lt; 320 ? (l[3 + shiftlimbs] &gt;&gt; shiftlow) : 0;</B></FONT>
+    secp256k1_scalar_cadd_bit(r, 0, (l[(shift - 1) &gt;&gt; 6] &gt;&gt; ((shift - 1) &amp; 0x3f)) &amp; 1);
+}
+
+#endif /* SECP256K1_SCALAR_REPR_IMPL_H */
+</PRE>
+</BODY>
+</HTML>

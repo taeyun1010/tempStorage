@@ -1,0 +1,121 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+<HEAD>
+ <TITLE>bitcoin-atom-master_src_script_script_error.cpp</TITLE>
+<META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <script type="text/javascript">
+  <!--
+   function ZweiFrames(URL1,F1,URL2,F2)
+   {
+    parent.frames[F1].location.href=URL1;
+    parent.frames[F2].location.href=URL2;
+   }
+  //-->
+  </script>
+</HEAD>
+<BODY BGCOLOR="#ffffff">
+<HR>
+<H3><CENTER>bitcoin-atom-master_src_script_script_error.cpp</CENTER></H3><HR>
+<PRE>
+// Copyright (c) 2009-2010 Satoshi Nakamoto
+// Copyright (c) 2009-2017 The Bitcoin Core developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
+<A NAME="0"></A>#include &lt;script/script_error.h&gt;
+
+const char* ScriptErrorString(const ScriptError serror)
+<FONT color="#0000ff"><A HREF="javascript:ZweiFrames('match38-1.html#0',3,'match38-top.html#0',1)"><IMG SRC="forward.gif" ALT="other" BORDER="0" ALIGN="right"></A><B>{
+    switch (serror)
+    {
+        case SCRIPT_ERR_OK:
+            return &quot;No error&quot;;
+        case SCRIPT_ERR_EVAL_FALSE:
+            return &quot;Script evaluated without error but finished with a false/empty top stack element&quot;;
+        case SCRIPT_ERR_VERIFY:
+            return &quot;Script failed an OP_VERIFY operation&quot;;
+        case SCRIPT_ERR_EQUALVERIFY:
+            return &quot;Script failed an OP_EQUALVERIFY operation&quot;;
+        case SCRIPT_ERR_CHECKMULTISIGVERIFY:
+            return &quot;Script failed an OP_CHECKMULTISIGVERIFY operation&quot;;
+        case SCRIPT_ERR_CHECKSIGVERIFY:
+            return &quot;Script failed an OP_CHECKSIGVERIFY operation&quot;;
+        case SCRIPT_ERR_NUMEQUALVERIFY:
+            return &quot;Script failed an OP_NUMEQUALVERIFY operation&quot;;
+        case SCRIPT_ERR_SCRIPT_SIZE:
+            return &quot;Script is too big&quot;;
+        case SCRIPT_ERR_PUSH_SIZE:
+            return &quot;Push value size limit exceeded&quot;;
+        case SCRIPT_ERR_OP_COUNT:
+            return &quot;Operation limit exceeded&quot;;
+        case SCRIPT_ERR_STACK_SIZE:
+            return &quot;Stack size limit exceeded&quot;;
+        case SCRIPT_ERR_SIG_COUNT:
+            return &quot;Signature count negative or greater than pubkey count&quot;;
+        case SCRIPT_ERR_PUBKEY_COUNT:
+            return &quot;Pubkey count negative or limit exceeded&quot;;
+        case SCRIPT_ERR_BAD_OPCODE:
+            return &quot;Opcode missing or not understood&quot;;
+        case SCRIPT_ERR_DISABLED_OPCODE:
+            return &quot;Attempted to use a disabled opcode&quot;;
+        case SCRIPT_ERR_INVALID_STACK_OPERATION:
+            return &quot;Operation not valid with the current stack size&quot;;
+        case SCRIPT_ERR_INVALID_ALTSTACK_OPERATION:
+            return &quot;Operation not valid with the current altstack size&quot;;
+        case SCRIPT_ERR_OP_RETURN:
+            return &quot;OP_RETURN was encountered&quot;;
+        case SCRIPT_ERR_UNBALANCED_CONDITIONAL:
+            return &quot;Invalid OP_IF construction&quot;;
+        case SCRIPT_ERR_NEGATIVE_LOCKTIME:
+            return &quot;Negative locktime&quot;;
+        case SCRIPT_ERR_UNSATISFIED_LOCKTIME:
+            return &quot;Locktime requirement not satisfied&quot;;
+        case SCRIPT_ERR_SIG_HASHTYPE:
+            return &quot;Signature hash type missing or not understood&quot;;
+        case SCRIPT_ERR_SIG_DER:
+            return &quot;Non-canonical DER signature&quot;;
+        case SCRIPT_ERR_MINIMALDATA:
+            return &quot;Data push larger than necessary&quot;;
+        case SCRIPT_ERR_SIG_PUSHONLY:
+            return &quot;Only non-push operators allowed in signatures&quot;;
+        case SCRIPT_ERR_SIG_HIGH_S:
+            return &quot;Non-canonical signature: S value is unnecessarily high&quot;;
+        case SCRIPT_ERR_SIG_NULLDUMMY:
+            return &quot;Dummy CHECKMULTISIG argument must be zero&quot;;
+        case SCRIPT_ERR_MINIMALIF:
+            return &quot;OP_IF/NOTIF argument must be minimal&quot;;
+        case SCRIPT_ERR_SIG_NULLFAIL:
+            return &quot;Signature must be zero for failed CHECK(MULTI)SIG operation&quot;;
+        case SCRIPT_ERR_DISCOURAGE_UPGRADABLE_NOPS:
+            return &quot;NOPx reserved for soft-fork upgrades&quot;;
+        case SCRIPT_ERR_DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM:
+            return &quot;Witness version reserved for soft-fork upgrades&quot;;
+        case SCRIPT_ERR_PUBKEYTYPE:
+            return &quot;Public key is neither compressed or uncompressed&quot;;
+        case SCRIPT_ERR_CLEANSTACK:
+            return &quot;Extra items left on stack after execution&quot;;
+        case SCRIPT_ERR_WITNESS_PROGRAM_WRONG_LENGTH:
+            return &quot;Witness program has incorrect length&quot;;
+        case SCRIPT_ERR_WITNESS_PROGRAM_WITNESS_EMPTY:
+            return &quot;Witness program was passed an empty witness&quot;;
+        case SCRIPT_ERR_WITNESS_PROGRAM_MISMATCH:
+            return &quot;Witness program hash mismatch&quot;;
+        case SCRIPT_ERR_WITNESS_MALLEATED:
+            return &quot;Witness requires empty scriptSig&quot;;
+        case SCRIPT_ERR_WITNESS_MALLEATED_P2SH:
+            return &quot;Witness requires only-redeemscript scriptSig&quot;;
+        case SCRIPT_ERR_WITNESS_UNEXPECTED:
+            return &quot;Witness provided for non-witness script&quot;;
+        case SCRIPT_ERR_WITNESS_PUBKEYTYPE:
+            return &quot;Using non-compressed keys in segwit&quot;;
+        case SCRIPT_ERR_MUST_USE_FORKID:
+            return &quot;Signature must use SIGHASH_FORKID&quot;;
+        case SCRIPT_ERR_UNKNOWN_ERROR:</B></FONT>
+        case SCRIPT_ERR_ERROR_COUNT:
+        default: break;
+    }
+    return &quot;unknown error&quot;;
+}
+</PRE>
+</BODY>
+</HTML>
